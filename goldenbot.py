@@ -3,6 +3,9 @@ import requests
 import asyncio
 import configparser
 
+from tabulate import tabulate
+from bs4 import BeautifulSoup
+
 
 conf = configparser.RawConfigParser()
 conf.read("config.txt")
@@ -114,8 +117,31 @@ async def on_message(message):
         pass
 
     if message.content.startswith("!exchanges"):
-        # TODO: Lists the exchanges rates for GRLC
-        pass
+        data = []
+        tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
+        try:
+            ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
+        except requests.Timeout:
+            ex = None
+
+        if ex:
+            await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
+            soup = BeautifulSoup(ex.text, 'html.parser')
+            table = soup.find('table', attrs={'id':'markets-table'})
+            table_body = table.find('tbody')
+
+            rows = table_body.find_all('tr')
+            for row in rows:
+                cols = row.find_all('td')
+                cols = [ele.text.strip() for ele in cols]
+                data.append([ele for ele in cols if ele])
+
+            data = [[x[0],x[1],x[2],x[3],x[4]] for x in data] #Remove columns
+            table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
+            await client.send_message(message.channel, table)
+        else:
+            # Timeout
+            await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
 
 client.run(BOT_TOKEN)
