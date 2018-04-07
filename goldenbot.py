@@ -13,6 +13,36 @@ conf.read("config.txt")
 BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
 
 
+def is_fiat(name):
+    if name in ("USD", "EUR", "GBP", "AUD"):
+        return True
+    else:
+        return False
+
+
+def is_crypto(name):
+    if name in ("GRLC", "BTC", "ETH", "LTC", "NANO"):
+        return True
+    else:
+        return False
+
+
+def get_rate_crypto(crypto, fiat="USD"):
+    crypto_name = {"GRLC": "garlicoin",
+                   "BTC": "bitcoin",
+                   "ETH": "ethereum",
+                   "LTC": "litecoin",
+                   "NANO": "nano"}
+    try:
+        datas = requests.get("https://api.coinmarketcap.com/v1/ticker/{0}/?convert={1}".format(crypto_name[crypto], fiat), timeout=10)
+    except requests.Timeout:
+        return None
+
+    datas = datas.json()[0]
+
+    return float(datas["price_{}".format(fiat.lower())])
+
+
 def get_fiats():
     try:
         usd_eur = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=EUR", timeout=10)
@@ -104,10 +134,90 @@ async def on_message(message):
         # TODO: Get details for Garlicoin (graph last 24h ?)
         pass
 
-    if message.content.startswith("!convert"):
-        # TODO: !convert [amount] [currency1] [currency2] [rate (optional)]
-        #       --> [currency1] [amount] = [currency2] [converted amount] ([rate])
-        pass
+    if message.content.startswith("!conv"):
+        # !conv [amount] [currency1] [currency2] [rate (optional)]
+        # --> [currency1] [amount] = [currency2] [converted amount] ([rate])
+
+        # Check if there is a rate
+        msg = message.content.replace("!conv ", "").split(" ")
+        if len(msg) == 3:
+            # No rate given, get it from CoinMarketCap
+            amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
+            curr1 = msg[1]
+            curr2 = msg[2]
+
+            # FIAT -> CRYPTO, CRYPTO -> FIAT and CRYPTO -> CRYPTO are ok (FIAT -> FIAT is not)
+            if is_fiat(curr1) and is_fiat(curr2):
+                # Get the exchange rate (using BTC as a middle value)
+                tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
+                fiat1_btc = get_rate_crypto("BTC", curr1)
+                fiat2_btc = get_rate_crypto("BTC", curr2)
+
+                if fiat1_btc and fiat2_btc:
+                    await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
+                    rate = fiat1_btc / fiat2_btc
+                    conv_amount = amount * rate
+                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+            elif is_crypto(curr1) and is_crypto(curr2):
+                # Get each crypto rate in BTC then calculate the rate
+                tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
+                crypto1_btc = get_rate_crypto(curr1, "BTC")
+                crypto2_btc = get_rate_crypto(curr2, "BTC")
+
+                if crypto1_btc and crypto2_btc:
+                    await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
+                    rate = crypto1_btc / crypto2_btc
+                    conv_amount = amount * rate
+                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+            elif is_crypto(curr1) or is_fiat(curr1) and is_crypto(curr2) or is_fiat(curr2):
+                # Find the FIAT and ask CoinMarketCap for the crypto using the FIAT
+                if is_crypto(curr1):
+                    fiat = curr2
+                    crypto = curr1
+                else:
+                    fiat = curr1
+                    crypto = curr2
+
+                tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
+                rate = get_rate_crypto(crypto, fiat)
+                if rate:
+                    await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
+                    if fiat == curr1:
+                        conv_amount = amount / rate
+                        await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, 1/rate))
+                    else:
+                        conv_amount = amount * rate
+                        await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+            else:
+                # One or both currencies aren't known
+                await client.send_message(message.channel, "One (or both) currency entered is not supported.")
+
+        elif len(msg) == 4:
+            # Make the calculation using the rate
+            amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
+            curr1 = msg[1]
+            curr2 = msg[2]
+            rate = float(msg[3].replace(",", ".")) # In case someone sends 0,02 instead of 0.02
+
+            conv_amount = amount * rate
+            await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+        else:
+            # Not enough parameters sent
+            await client.send_message(message.channel, "Not enough parameters given : `!conv [amount] [currency1] [currency2] [rate (optional)]`")
 
     if message.content.startswith("!exchange"):
         data = []
@@ -135,6 +245,8 @@ async def on_message(message):
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+    # TODO: !help
 
 
 client.run(BOT_TOKEN)
