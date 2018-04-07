@@ -75,17 +75,11 @@ async def on_message(message):
         fiats = get_fiats()
         if fiats:
             await client.edit_message(tmp, "Acquiring fiat rates from CoinMarketCap... Done!")
-            # TODO: use tabulate for the table and make it mobile friendly
-            table = "```\n" \
-                    "    1 ₲ = 1 ₲    |      USD      |      EUR      |      GBP      |      AUD\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  GRLC --> FIAT  |  $ {0}  |  {1} €  |  £ {2}  |  $ {3}\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  FIAT --> GRLC  |  ₲ {4}  |  ₲ {5}  |  ₲ {6}  |  ₲ {7}\n" \
-                    "```".format(fstr(9, fiats[0]), fstr(9, fiats[1]), fstr(9, fiats[2]), fstr(9, fiats[3]),
-                                 fstr(9, 1/fiats[0]), fstr(9, 1/fiats[1]), fstr(9, 1/fiats[2]), fstr(9, 1/fiats[3]))
+            symbols = [("USD", "$"), ("EUR", "€"), ("GBP", "£"), ("AUD", "$")]
+            data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(9, fiats[i])), "₲ {}".format(fstr(9, 1/fiats[i]))] for i in range(4)]
+            table = tabulate(data, headers=["", "Garlicoin", "Fiat"])
 
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
@@ -97,23 +91,22 @@ async def on_message(message):
 
         if cryptos:
             await client.edit_message(tmp, "Acquiring crypto rates from CoinMarketCap... Done!")
-            # TODO: use tabulate for the table and make it mobile friendly
-            table = "```\n" \
-                    "    1 ₲ = 1 ₲    |      BTC      |      ETH      |      LTC      |     NANO\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  GRLC --> COIN  | ฿ {0} | Ξ {1} | Ł {2} | η {3}\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  COIN --> GRLC  | ₲ {4} | ₲ {5} | ₲ {6} | ₲ {7}\n" \
-                    "```".format(fstr(11, cryptos[0]), fstr(11, cryptos[1]), fstr(11, cryptos[2]), fstr(11, cryptos[3]),
-                                 fstr(11, 1/cryptos[0]), fstr(11, 1/cryptos[1]), fstr(11, 1/cryptos[2]), fstr(11, 1/cryptos[3]))
+            symbols = [("BTC", "฿"), ("ETH", "Ξ"), ("LTC", "Ł"), ("NANO", "η")]
+            data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(10, cryptos[i])), "₲ {}".format(fstr(10, 1/cryptos[i]))] for i in range(4)]
+            table = tabulate(data, headers=["", "Garlicoin", "Crypto"])
 
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
-    if message.content.startswith("!gold"):
+    if message.content.startswith("!graph"):
         # TODO: Get details for Garlicoin (graph last 24h ?)
+        pass
+
+    if message.content.startswith("!convert"):
+        # TODO: !convert [amount] [currency1] [currency2] [rate (optional)]
+        #       --> [currency1] [amount] = [currency2] [converted amount] ([rate])
         pass
 
     if message.content.startswith("!exchange"):
@@ -127,7 +120,7 @@ async def on_message(message):
         if ex:
             await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
             soup = BeautifulSoup(ex.text, 'html.parser')
-            table = soup.find('table', attrs={'id':'markets-table'})
+            table = soup.find('table', attrs={'id': 'markets-table'})
             table_body = table.find('tbody')
 
             rows = table_body.find_all('tr')
@@ -136,7 +129,7 @@ async def on_message(message):
                 cols = [ele.text.strip() for ele in cols]
                 data.append([ele for ele in cols if ele])
 
-            data = [[x[0],x[1],x[2],x[3],x[4]] for x in data] # Remove columns
+            data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
             table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
             await client.send_message(message.channel, "```{}```".format(table))
         else:
