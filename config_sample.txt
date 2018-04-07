@@ -1,0 +1,2 @@
+[goldenbot_conf]
+BOT_TOKEN = HERE GOES THE BOT TOKEN
