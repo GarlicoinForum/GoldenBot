@@ -75,7 +75,7 @@ async def on_message(message):
         fiats = get_fiats()
         if fiats:
             await client.edit_message(tmp, "Acquiring fiat rates from CoinMarketCap... Done!")
-
+            # TODO: use tabulate for the table and make it mobile friendly
             table = "```\n" \
                     "    1 ₲ = 1 ₲    |      USD      |      EUR      |      GBP      |      AUD\n" \
                     "-----------------|---------------|---------------|---------------|---------------\n" \
@@ -97,7 +97,7 @@ async def on_message(message):
 
         if cryptos:
             await client.edit_message(tmp, "Acquiring crypto rates from CoinMarketCap... Done!")
-
+            # TODO: use tabulate for the table and make it mobile friendly
             table = "```\n" \
                     "    1 ₲ = 1 ₲    |      BTC      |      ETH      |      LTC      |     NANO\n" \
                     "-----------------|---------------|---------------|---------------|---------------\n" \
@@ -116,7 +116,7 @@ async def on_message(message):
         # TODO: Get details for Garlicoin (graph last 24h ?)
         pass
 
-    if message.content.startswith("!exchanges"):
+    if message.content.startswith("!exchange"):
         data = []
         tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
         try:
@@ -136,9 +136,9 @@ async def on_message(message):
                 cols = [ele.text.strip() for ele in cols]
                 data.append([ele for ele in cols if ele])
 
-            data = [[x[0],x[1],x[2],x[3],x[4]] for x in data] #Remove columns
+            data = [[x[0],x[1],x[2],x[3],x[4]] for x in data] # Remove columns
             table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
