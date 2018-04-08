@@ -19,7 +19,7 @@ async def convert_3(client, message, msg):
     curr1 = msg[1]
     curr2 = msg[2]
 
-    # FIAT -> CRYPTO, CRYPTO -> FIAT and CRYPTO -> CRYPTO are ok (FIAT -> FIAT is not)
+    # FIAT -> FIAT
     if is_fiat(curr1) and is_fiat(curr2):
         # Get the exchange rate (using BTC as a middle value)
         fiat1_btc = await get_rate_crypto(client, message, "BTC", curr1, verbose=False)
@@ -30,6 +30,7 @@ async def convert_3(client, message, msg):
             conv_amount = amount * rate
             await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
+    # CRYPTO -> CRYPTO
     elif is_crypto(curr1) and is_crypto(curr2):
         # Get each crypto rate in BTC then calculate the rate
         crypto1_btc = await get_rate_crypto(client, message, curr1, "BTC", verbose=False)
@@ -40,6 +41,7 @@ async def convert_3(client, message, msg):
             conv_amount = amount * rate
             await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
+    # FIAT -> CRYPTO or CRYPTO -> FIAT
     elif is_crypto(curr1) or is_fiat(curr1) and is_crypto(curr2) or is_fiat(curr2):
         # Find the FIAT and ask CoinMarketCap for the crypto using the FIAT
         if is_crypto(curr1):
@@ -98,6 +100,7 @@ def is_crypto(name):
 
 async def get_rate_crypto(client, message, crypto, fiat="USD", verbose=True):
     # TODO: put the dict in the config file
+    # Somehow https://api.coinmarketcap.com/v1/ticker/bitcoin/?convert=BTC doesn't give an error!
     crypto_name = {"GRLC": "garlicoin",
                    "BTC": "bitcoin",
                    "ETH": "ethereum",
@@ -225,8 +228,12 @@ async def on_message(message):
             await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
 
         else:
+            # Show a custom message if currency1 == currency2
+            if currency1 == currency2:
+                await client.send_message(message.channel, "```{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+
             # Check if there is a rate
-            if len(msg) == 3:
+            elif len(msg) == 3:
                 await convert_3(client, message, msg)
 
             elif len(msg) == 4:
