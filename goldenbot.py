@@ -13,6 +13,115 @@ conf.read("config.txt")
 BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
 
 
+async def convert_3(client, message, msg):
+    # No rate given, get it from CoinMarketCap
+    amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
+    curr1 = msg[1]
+    curr2 = msg[2]
+
+    # FIAT -> FIAT
+    if is_fiat(curr1) and is_fiat(curr2):
+        # Get the exchange rate (using BTC as a middle value)
+        fiat1_btc = await get_rate_crypto(client, message, "BTC", curr1, verbose=False)
+        fiat2_btc = await get_rate_crypto(client, message, "BTC", curr2)
+
+        if fiat1_btc and fiat2_btc:
+            rate = fiat1_btc / fiat2_btc
+            conv_amount = amount * rate
+            await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+    # CRYPTO -> CRYPTO
+    elif is_crypto(curr1) and is_crypto(curr2):
+        # Get each crypto rate in BTC then calculate the rate
+        crypto1_btc = await get_rate_crypto(client, message, curr1, "BTC", verbose=False)
+        crypto2_btc = await get_rate_crypto(client, message, curr2, "BTC")
+
+        if crypto1_btc and crypto2_btc:
+            rate = crypto1_btc / crypto2_btc
+            conv_amount = amount * rate
+            await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+    # FIAT -> CRYPTO or CRYPTO -> FIAT
+    elif is_crypto(curr1) or is_fiat(curr1) and is_crypto(curr2) or is_fiat(curr2):
+        # Find the FIAT and ask CoinMarketCap for the crypto using the FIAT
+        if is_crypto(curr1):
+            fiat = curr2
+            crypto = curr1
+        else:
+            fiat = curr1
+            crypto = curr2
+
+        rate = await get_rate_crypto(client, message, crypto, fiat)
+        if rate:
+            if fiat == curr1:
+                conv_amount = amount / rate
+                await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, 1/rate))
+            else:
+                conv_amount = amount * rate
+                await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+    else:
+        # One or both currencies aren't known
+        await client.send_message(message.channel, "One (or both) currency entered is not supported.")
+
+
+async def convert_4(client, message, msg):
+    try:
+        float(msg[3].replace(",", "."))
+    except ValueError:
+        # The rate isn't a numeric value, so we use CoinMarketCap instead
+        await convert_3(client, message, msg)
+    else:
+        # Make the calculation using the given rate
+        amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
+        curr1 = msg[1]
+        curr2 = msg[2]
+        rate = float(msg[3].replace(",", ".")) # In case someone sends 0,02 instead of 0.02
+
+        conv_amount = amount * rate
+        await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+
+
+def is_fiat(name):
+    # TODO: put the tuple in the config file
+    if name in ("USD", "EUR", "GBP", "AUD"):
+        return True
+    else:
+        return False
+
+
+def is_crypto(name):
+    # TODO: put the tuple in the config file
+    if name in ("GRLC", "BTC", "ETH", "LTC", "NANO"):
+        return True
+    else:
+        return False
+
+
+async def get_rate_crypto(client, message, crypto, fiat="USD", verbose=True):
+    # TODO: put the dict in the config file
+    # Somehow https://api.coinmarketcap.com/v1/ticker/bitcoin/?convert=BTC doesn't give an error!
+    crypto_name = {"GRLC": "garlicoin",
+                   "BTC": "bitcoin",
+                   "ETH": "ethereum",
+                   "LTC": "litecoin",
+                   "NANO": "nano"}
+    try:
+        if verbose:
+            tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
+        datas = requests.get("https://api.coinmarketcap.com/v1/ticker/{0}/?convert={1}".format(crypto_name[crypto], fiat), timeout=10)
+        if verbose:
+            await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
+    except requests.Timeout:
+        if verbose:
+            await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+        return None
+
+    datas = datas.json()[0]
+
+    return float(datas["price_{}".format(fiat.lower())])
+
+
 def get_fiats():
     try:
         usd_eur = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=EUR", timeout=10)
@@ -75,20 +184,15 @@ async def on_message(message):
         fiats = get_fiats()
         if fiats:
             await client.edit_message(tmp, "Acquiring fiat rates from CoinMarketCap... Done!")
+            symbols = [("USD", "$"), ("EUR", "€"), ("GBP", "£"), ("AUD", "$")]
+            data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(9, fiats[i])), "₲ {}".format(fstr(9, 1/fiats[i]))] for i in range(4)]
+            table = tabulate(data, headers=["", "Garlicoin", "Fiat"])
 
-            table = "```\n" \
-                    "    1 ₲ = 1 ₲    |      USD      |      EUR      |      GBP      |      AUD\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  GRLC --> FIAT  |  $ {0}  |  {1} €  |  £ {2}  |  $ {3}\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  FIAT --> GRLC  |  ₲ {4}  |  ₲ {5}  |  ₲ {6}  |  ₲ {7}\n" \
-                    "```".format(fstr(9, fiats[0]), fstr(9, fiats[1]), fstr(9, fiats[2]), fstr(9, fiats[3]),
-                                 fstr(9, 1/fiats[0]), fstr(9, 1/fiats[1]), fstr(9, 1/fiats[2]), fstr(9, 1/fiats[3]))
-
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
 
     if message.content.startswith("!crypto"):
         # Get the GRLC price in BTC, ETH, LTC, NANO
@@ -97,26 +201,50 @@ async def on_message(message):
 
         if cryptos:
             await client.edit_message(tmp, "Acquiring crypto rates from CoinMarketCap... Done!")
+            symbols = [("BTC", "฿"), ("ETH", "Ξ"), ("LTC", "Ł"), ("NANO", "η")]
+            data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(10, cryptos[i])), "₲ {}".format(fstr(10, 1/cryptos[i]))] for i in range(4)]
+            table = tabulate(data, headers=["", "Garlicoin", "Crypto"])
 
-            table = "```\n" \
-                    "    1 ₲ = 1 ₲    |      BTC      |      ETH      |      LTC      |     NANO\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  GRLC --> COIN  | ฿ {0} | Ξ {1} | Ł {2} | η {3}\n" \
-                    "-----------------|---------------|---------------|---------------|---------------\n" \
-                    "  COIN --> GRLC  | ₲ {4} | ₲ {5} | ₲ {6} | ₲ {7}\n" \
-                    "```".format(fstr(11, cryptos[0]), fstr(11, cryptos[1]), fstr(11, cryptos[2]), fstr(11, cryptos[3]),
-                                 fstr(11, 1/cryptos[0]), fstr(11, 1/cryptos[1]), fstr(11, 1/cryptos[2]), fstr(11, 1/cryptos[3]))
-
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
-    if message.content.startswith("!gold"):
+
+    if message.content.startswith("!graph"):
         # TODO: Get details for Garlicoin (graph last 24h ?)
         pass
 
-    if message.content.startswith("!exchanges"):
+
+    if message.content.startswith("!conv"):
+        # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
+        msg = message.content.replace("!conv ", "").split(" ")
+
+        try:
+            # Check if the amount sent by the user is a number
+            float(msg[0].replace(",", "."))
+        except ValueError:
+            # The amount isn't a numeric value
+            await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
+
+        else:
+            # Show a custom message if currency1 == currency2
+            if msg[1] == msg[2]:
+                await client.send_message(message.channel, "```{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+
+            # Check if there is a rate
+            elif len(msg) == 3:
+                await convert_3(client, message, msg)
+
+            elif len(msg) == 4:
+                await convert_4(client, message, msg)
+
+            else:
+                # Not enough parameters sent
+                await client.send_message(message.channel, "Not enough parameters given : `!conv [amount] [currency1] [currency2] [rate (optional)]`")
+
+
+    if message.content.startswith("!exchange"):
         data = []
         tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
         try:
@@ -127,7 +255,7 @@ async def on_message(message):
         if ex:
             await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
             soup = BeautifulSoup(ex.text, 'html.parser')
-            table = soup.find('table', attrs={'id':'markets-table'})
+            table = soup.find('table', attrs={'id': 'markets-table'})
             table_body = table.find('tbody')
 
             rows = table_body.find_all('tr')
@@ -136,12 +264,14 @@ async def on_message(message):
                 cols = [ele.text.strip() for ele in cols]
                 data.append([ele for ele in cols if ele])
 
-            data = [[x[0],x[1],x[2],x[3],x[4]] for x in data] #Remove columns
+            data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
             table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
-            await client.send_message(message.channel, table)
+            await client.send_message(message.channel, "```{}```".format(table))
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+    # TODO: !help
 
 
 client.run(BOT_TOKEN)
