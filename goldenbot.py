@@ -2,10 +2,14 @@ import discord
 import requests
 import asyncio
 import configparser
+import time
 
+from datetime import datetime
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 
+import matplotlib.pyplot as plt
+import matplotlib.dates as md
 
 conf = configparser.RawConfigParser()
 conf.read("config.txt")
@@ -212,9 +216,49 @@ async def on_message(message):
 
 
     if message.content.startswith("!graph"):
-        # TODO: Get details for Garlicoin (graph last 24h ?)
-        pass
+        msg = message.content.replace("!graph ", "").split(" ")
+        api_url = 'https://graphs2.coinmarketcap.com/currencies/garlicoin/{}/{}/'
+        end = int(time.time() * 1000)
+        try:
+            start = end - 86400000
+            if (msg[0].isdigit()):
+                start = end - (int(msg[0]) * 86400000)
+            r = requests.get(api_url.format(start, end), timeout=10)
+        except requests.Timeout:
+            r = None
 
+        if r is not None:
+            json_data = r.json()
+            data = {}
+            for k,v in json_data.items():
+                for i in v:
+                    t = datetime.fromtimestamp(i[0]/1000.0)
+                    if data.get(t):
+                        data[t][k] = '{:,}'.format(i[1])
+                    else:
+                        data[t] = {k: '{:,}'.format(i[1])}
+
+            prices = []
+            dates = []
+            for k in data:
+                dates.append(k)
+                prices.append(float(data.get(k).get('price_usd')))
+
+            plt.gca().xaxis.set_major_formatter(md.DateFormatter('%d/%m %H:%M'))
+            plt.gca().xaxis.set_major_locator(md.AutoDateLocator())
+            plt.gca().yaxis.grid(True)
+            plt.ylabel("Price (USD)")
+            plt.plot(dates,prices)
+            plt.gcf().autofmt_xdate()
+
+            try:
+                plt.savefig("price.jpg")
+                await client.send_file(message.channel,"price.jpg")
+            except Exception as inst:
+                await client.send_message(message.channel, "Error: Unable to save/send image.")
+                print(inst)
+        else:
+            await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
     if message.content.startswith("!conv"):
         # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
