@@ -271,7 +271,17 @@ async def on_message(message):
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
-    # TODO: !help
+
+    if message.content.startswith("!help"):
+        help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n\n```" \
+                    "!fiat     : Show the current price of GRLC in USD, EUR, GBP and AUD\n" \
+                    "!crypto   : Show the current price of GRLC in BTC, ETH, LTC and NANO\n" \
+                    "!exchange : Show the current rates in each exchanges\n" \
+                    "!conv     : Convert an amount of one currency to another one using optionally the given rate\n" \
+                    "            Usage: !conv [amount] [cur1] [cur2] [rate (optional)]\n" \
+                    "            [cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO\n" \
+                    "!help     : Show a list of commands and what they do```".format(message.author.id)
+        await client.send_message(message.channel, help_text)
 
 
 client.run(BOT_TOKEN)
