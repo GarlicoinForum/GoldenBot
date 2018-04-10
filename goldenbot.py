@@ -2,6 +2,7 @@ import discord
 import requests
 import asyncio
 import configparser
+import os
 
 from tabulate import tabulate
 from bs4 import BeautifulSoup
@@ -212,9 +213,10 @@ async def on_message(message):
 
 
     if message.content.startswith("!graph"):
-        # TODO: Get details for Garlicoin (graph last 24h ?)
-        pass
-
+        if os.path.isfile("out.png"):
+            await client.send_file(message.channel,"out.png")
+        else:
+            await client.send_message(message.channel, "Error: Unable to grab chart.")
 
     if message.content.startswith("!conv"):
         # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
