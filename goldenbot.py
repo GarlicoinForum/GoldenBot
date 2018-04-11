@@ -216,6 +216,8 @@ async def on_message(message):
         msg = message.content.replace("!graph ", "").split(" ")
         if os.path.isfile("{}.png".format(msg[0].lower())):
             await client.send_file(message.channel,"{}.png".format(msg[0].lower()))
+        elif message.content == "!graph" or message.content == "!graph ":
+            await client.send_file(message.channel,"1d.png")
         else:
             await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
 
