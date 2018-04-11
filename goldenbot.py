@@ -305,7 +305,7 @@ async def on_message(message):
             await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
     if message.content.startswith("!help"):
-        help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n\n```" \
+        help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n```" \
                     "!help     : Displays a list of commands and what they do\n" \
                     "!fiat     : Displays current price of GRLC in FIATs\n" \
                     "!crypto   : Displays current price of GRLC in Cryptos\n" \
