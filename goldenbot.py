@@ -217,7 +217,7 @@ async def on_message(message):
         if os.path.isfile("{}.png".format(msg[0])):
             await client.send_file(message.channel,"{}.png".format(msg[0]))
         else:
-            await client.send_message(message.channel, "Error: Unable to grab chart.")
+            await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph {1d|1w|1m|3m}.")
 
     if message.content.startswith("!conv"):
         # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
