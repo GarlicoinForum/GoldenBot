@@ -285,6 +285,7 @@ async def on_message(message):
             price = None
 
         if price is not None:
+            await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
             price = round(float(price.json()[0]["price_usd"]),6)
             diff = round(diff.json(),2)
             blocks = blocks.json()
