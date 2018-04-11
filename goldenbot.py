@@ -213,8 +213,9 @@ async def on_message(message):
 
 
     if message.content.startswith("!graph"):
-        if os.path.isfile("out.png"):
-            await client.send_file(message.channel,"out.png")
+        msg = message.content.replace("!graph ", "").split(" ")
+        if os.path.isfile("{}.png".format(msg[0])):
+            await client.send_file(message.channel,"{}.png".format(msg[0]))
         else:
             await client.send_message(message.channel, "Error: Unable to grab chart.")
 
