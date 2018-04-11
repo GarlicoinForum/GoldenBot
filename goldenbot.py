@@ -217,7 +217,8 @@ async def on_message(message):
         if os.path.isfile("{}.png".format(msg[0])):
             await client.send_file(message.channel,"{}.png".format(msg[0]))
         else:
-            await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph {1d|1w|1m|3m}.")
+            await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
+
 
     if message.content.startswith("!conv"):
         # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
@@ -244,7 +245,9 @@ async def on_message(message):
 
             else:
                 # Not enough parameters sent
-                await client.send_message(message.channel, "Not enough parameters given : `!conv [amount] [currency1] [currency2] [rate (optional)]`")
+                error_txt = "Not enough parameters given : `!conv [amount] [cur1] [cur2] [rate (optional)]`\n" \
+                            "[cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO"
+                await client.send_message(message.channel, error_txt)
 
 
     if message.content.startswith("!exchange"):
@@ -274,7 +277,8 @@ async def on_message(message):
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
-    if message.content.startswith("!network"):
+
+    if message.content.startswith("!net"):
         tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
         try:
             price = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
@@ -285,28 +289,32 @@ async def on_message(message):
         except requests.Timeout:
             price = None
 
-        if price is not None:
+        if price:
             await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
-            price = round(float(price.json()[0]["price_usd"]),6)
-            diff = round(diff.json(),2)
+            price = round(float(price.json()[0]["price_usd"]), 6)
+            diff = round(diff.json(), 2)
             blocks = blocks.json()
-            hrate = round(float(hrate.json())/10e8,2) #Convert to GH/s
+            hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
             supply = round(supply.json())
 
-            table = tabulate([[price,diff,blocks,hrate,supply]], headers=["Price (USD)","Difficulty","Block","Hashrate (GH/s)","Supply"])
+            table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
             await client.send_message(message.channel, "```{}```".format(table))
         else:
             await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
     if message.content.startswith("!help"):
         help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n\n```" \
-                    "!fiat     : Show the current price of GRLC in USD, EUR, GBP and AUD\n" \
-                    "!crypto   : Show the current price of GRLC in BTC, ETH, LTC and NANO\n" \
-                    "!exchange : Show the current rates in each exchanges\n" \
-                    "!conv     : Convert an amount of one currency to another one using optionally the given rate\n" \
+                    "!help     : Displays a list of commands and what they do\n" \
+                    "!fiat     : Displays current price of GRLC in FIATs\n" \
+                    "!crypto   : Displays current price of GRLC in Cryptos\n" \
+                    "!exchange : Displays all the current rates by exchange\n" \
+                    "!net      : Displays price, difficulty, block, hashrate and supply\n" \
+                    "!graph    : Displays the price chart.\n" \
+                    "            Usage : !graph [1d|1w|1m|3m]\n" \
+                    "!conv     : Converts an amount of one currency to another\n" \
                     "            Usage: !conv [amount] [cur1] [cur2] [rate (optional)]\n" \
-                    "            [cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO\n" \
-                    "!help     : Show a list of commands and what they do```".format(message.author.id)
+                    "            supported currencies: USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC, NANO" \
+                    "```".format(message.author.id)
         await client.send_message(message.channel, help_text)
 
 
