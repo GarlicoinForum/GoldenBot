@@ -17,8 +17,8 @@ BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
 async def convert_3(client, message, msg):
     # No rate given, get it from CoinMarketCap
     amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
-    curr1 = msg[1]
-    curr2 = msg[2]
+    curr1 = msg[1].upper()
+    curr2 = msg[2].upper()
 
     # FIAT -> FIAT
     if is_fiat(curr1) and is_fiat(curr2):
@@ -75,8 +75,8 @@ async def convert_4(client, message, msg):
     else:
         # Make the calculation using the given rate
         amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
-        curr1 = msg[1]
-        curr2 = msg[2]
+        curr1 = msg[1].upper()
+        curr2 = msg[2].upper()
         rate = float(msg[3].replace(",", ".")) # In case someone sends 0,02 instead of 0.02
 
         conv_amount = amount * rate
@@ -214,8 +214,8 @@ async def on_message(message):
 
     if message.content.startswith("!graph"):
         msg = message.content.replace("!graph ", "").split(" ")
-        if os.path.isfile("{}.png".format(msg[0])):
-            await client.send_file(message.channel,"{}.png".format(msg[0]))
+        if os.path.isfile("{}.png".format(msg[0].lower())):
+            await client.send_file(message.channel,"{}.png".format(msg[0].lower()))
         else:
             await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
 
