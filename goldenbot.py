@@ -213,10 +213,11 @@ async def on_message(message):
 
 
     if message.content.startswith("!graph"):
-        if os.path.isfile("out.png"):
-            await client.send_file(message.channel,"out.png")
+        msg = message.content.replace("!graph ", "").split(" ")
+        if os.path.isfile("{}.png".format(msg[0])):
+            await client.send_file(message.channel,"{}.png".format(msg[0]))
         else:
-            await client.send_message(message.channel, "Error: Unable to grab chart.")
+            await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph {1d|1w|1m|3m}.")
 
     if message.content.startswith("!conv"):
         # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
@@ -273,6 +274,29 @@ async def on_message(message):
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
+    if message.content.startswith("!network"):
+        tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
+        try:
+            price = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
+            diff = requests.get("https://garli.co.in/api/getdifficulty", timeout=10)
+            blocks = requests.get("https://garli.co.in/api/getblockcount", timeout=10)
+            hrate = requests.get("https://garli.co.in/api/getnetworkhashps", timeout=10)
+            supply = requests.get("https://garli.co.in/ext/getmoneysupply", timeout=10)
+        except requests.Timeout:
+            price = None
+
+        if price is not None:
+            await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
+            price = round(float(price.json()[0]["price_usd"]),6)
+            diff = round(diff.json(),2)
+            blocks = blocks.json()
+            hrate = round(float(hrate.json())/10e8,2) #Convert to GH/s
+            supply = round(supply.json())
+
+            table = tabulate([[price,diff,blocks,hrate,supply]], headers=["Price (USD)","Difficulty","Block","Hashrate (GH/s)","Supply"])
+            await client.send_message(message.channel, "```{}```".format(table))
+        else:
+            await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
     if message.content.startswith("!help"):
         help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n\n```" \
