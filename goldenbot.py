@@ -188,7 +188,7 @@ def main():
                 data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(9, fiats[i])), "₲ {}".format(fstr(9, 1/fiats[i]))] for i in range(4)]
                 table = tabulate(data, headers=["", "Garlicoin", "Fiat"])
 
-                await client.send_message(message.channel, "```{}```".format(table))
+                await client.send_message(message.channel, "```js\n{}```".format(table))
             else:
                 # Timeout
                 await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
@@ -205,7 +205,7 @@ def main():
                 data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(10, cryptos[i])), "₲ {}".format(fstr(10, 1/cryptos[i]))] for i in range(4)]
                 table = tabulate(data, headers=["", "Garlicoin", "Crypto"])
 
-                await client.send_message(message.channel, "```{}```".format(table))
+                await client.send_message(message.channel, "```js\n{}```".format(table))
             else:
                 # Timeout
                 await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
@@ -235,7 +235,7 @@ def main():
             else:
                 # Show a custom message if currency1 == currency2
                 if msg[1] == msg[2]:
-                    await client.send_message(message.channel, "```{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+                    await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
 
                 # Check if there is a rate
                 elif len(msg) == 3:
@@ -273,7 +273,7 @@ def main():
 
                 data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
-                await client.send_message(message.channel, "```{}```".format(table))
+                await client.send_message(message.channel, "```js\n{}```".format(table))
             else:
                 # Timeout
                 await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
@@ -301,8 +301,8 @@ def main():
                 #Profitability in USD/Mh/day
                 profit = round(diff * 2**32 / 1e6 / 60 / 60.0 / 24 * price, 2)
                 table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
-                await client.send_message(message.channel, "```{}```".format(table))
-                await client.send_message(message.channel, "```Profitability ($/Mh/day): {}```".format(profit))
+                await client.send_message(message.channel, "```js\n{}```".format(table))
+                await client.send_message(message.channel, "```js\nProfitability ($/Mh/day): {}```".format(profit))
             else:
                 await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
