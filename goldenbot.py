@@ -297,9 +297,12 @@ def main():
                 blocks = blocks.json()
                 hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
                 supply = round(supply.json())
-
+                
+                #Profitability in USD/Mh/day
+                profit = round(diff * 2**32 / 1e6 / 60 / 60.0 / 24 * price, 2)
                 table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
                 await client.send_message(message.channel, "```{}```".format(table))
+                await client.send_message(message.channel, "```Profitability ($/Mh/day): {}```".format(profit))
             else:
                 await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
