@@ -126,7 +126,7 @@ def main():
                 await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
         # FIAT -> CRYPTO or CRYPTO -> FIAT
-        elif is_crypto(curr1) or is_fiat(curr1) and is_crypto(curr2) or is_fiat(curr2):
+        elif (is_crypto(curr1) or is_fiat(curr1)) and (is_crypto(curr2) or is_fiat(curr2)):
             # Find the FIAT and ask CoinMarketCap for the crypto using the FIAT
             if is_crypto(curr1):
                 fiat = curr2
