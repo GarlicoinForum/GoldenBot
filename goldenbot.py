@@ -25,6 +25,23 @@ def is_crypto(name):
         return False
 
 
+def apply_rate(value, rate, currency):
+    # value = $0.053408 and rate = 7.07003
+    # Converting value to a float
+    value = float(value.replace("$", ""))
+
+    # Apply the rate on the value
+    result = value/rate
+
+    # Format the output
+    formats = {"BTC": ("฿", 8), "ETH": ("Ξ", 8), "LTC": ("Ł", 8), "NANO": ("η", 5),
+               "GRLC": ("₲", 5), "EUR": ("€", 6), "GBP": ("£", 6), "AUD": ("$", 6)}
+
+    formater = "{0}{{:.{1}f}}".format(*formats[currency.upper()])
+
+    return formater.format(result)
+
+
 def get_fiats():
     try:
         usd_eur = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=EUR", timeout=10)
@@ -171,6 +188,77 @@ def main():
 
         return float(datas["price_{}".format(fiat.lower())])
 
+    async def exchange(client, message, currency=None):
+        if currency:
+            rate = None
+            if currency.upper() in ("BTC", "ETH", "LTC", "NANO", "GRLC"):
+                # Get the rate in USD of the crypto
+                rate = await get_rate_crypto(client, message, currency.upper(), "USD", False)
+
+            elif currency.upper() in ("EUR", "GBP", "AUD"):
+                # Get the rate of GRLC in USD and the currency
+                rate1 = await get_rate_crypto(client, message, "GRLC", "USD", False)
+                rate2 = await get_rate_crypto(client, message, "GRLC", currency.upper(), False)
+                rate = rate1/rate2
+
+            if rate:
+                data = []
+                tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
+                try:
+                    ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
+                except requests.Timeout:
+                    ex = None
+
+                if ex:
+                    await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
+                    soup = BeautifulSoup(ex.text, 'html.parser')
+                    table = soup.find('table', attrs={'id': 'markets-table'})
+                    table_body = table.find('tbody')
+
+                    rows = table_body.find_all('tr')
+                    for row in rows:
+                        cols = row.find_all('td')
+                        cols = [ele.text.strip() for ele in cols]
+                        data.append([ele for ele in cols if ele])
+
+                    # Calculate the price in the currency selected
+                    data = [[x[0], x[1], x[2], x[3], x[4], apply_rate(x[4], rate, currency)] for x in data] # Remove columns
+                    table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price", "Price ({})".format(currency.upper())])
+                    await client.send_message(message.channel, "```js\n{}```".format(table))
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+            else:
+                # Unable to get the currency
+                await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
+                await exchange(client, message)
+        else:
+            data = []
+            tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
+            try:
+                ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
+            except requests.Timeout:
+                ex = None
+
+            if ex:
+                await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
+                soup = BeautifulSoup(ex.text, 'html.parser')
+                table = soup.find('table', attrs={'id': 'markets-table'})
+                table_body = table.find('tbody')
+
+                rows = table_body.find_all('tr')
+                for row in rows:
+                    cols = row.find_all('td')
+                    cols = [ele.text.strip() for ele in cols]
+                    data.append([ele for ele in cols if ele])
+
+                data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
+                await client.send_message(message.channel, "```js\n{}```".format(table))
+            else:
+                # Timeout
+                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
     @client.event
     async def on_ready():
         print('Logged in as {} <@{}>'.format(client.user.name, client.user.id))
@@ -252,32 +340,10 @@ def main():
 
 
         if message.content.startswith("!exchange"):
-            data = []
-            tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
-            try:
-                ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
-            except requests.Timeout:
-                ex = None
-
-            if ex:
-                await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
-                soup = BeautifulSoup(ex.text, 'html.parser')
-                table = soup.find('table', attrs={'id': 'markets-table'})
-                table_body = table.find('tbody')
-
-                rows = table_body.find_all('tr')
-                for row in rows:
-                    cols = row.find_all('td')
-                    cols = [ele.text.strip() for ele in cols]
-                    data.append([ele for ele in cols if ele])
-
-                data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
-                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
-                await client.send_message(message.channel, "```js\n{}```".format(table))
+            if " " in message.content:
+                await exchange(client, message, message.content.split(" ")[1])
             else:
-                # Timeout
-                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
-
+                await exchange(client, message)
 
         if message.content.startswith("!net"):
             tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
@@ -297,7 +363,7 @@ def main():
                 blocks = blocks.json()
                 hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
                 supply = round(supply.json())
-                
+
                 #Profitability in USD/Mh/day
                 profit = round(diff * 2**32 / 1e6 / 60 / 60.0 / 24 * price, 2)
                 table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
@@ -311,8 +377,10 @@ def main():
                         "!help     : Displays a list of commands and what they do\n" \
                         "!fiat     : Displays current price of GRLC in FIATs\n" \
                         "!crypto   : Displays current price of GRLC in Cryptos\n" \
-                        "!exchange : Displays all the current rates by exchange\n" \
-                        "!net      : Displays price, difficulty, block, hashrate and supply\n" \
+                        "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
+                        "!exchange : Displays all the current rates by exchange (optional: convert it in another currency)\n" \
+                        "            Usage : !exchange [currency]\n" \
+                        "            supported currencies: EUR, GBP, AUD, BTC, ETH, LTC, NANO" \
                         "!graph    : Displays the price chart.\n" \
                         "            Usage : !graph [1d|1w|1m|3m]\n" \
                         "!conv     : Converts an amount of one currency to another\n" \
