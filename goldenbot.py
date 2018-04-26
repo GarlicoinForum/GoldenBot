@@ -200,64 +200,40 @@ def main():
                 rate1 = await get_rate_crypto(client, message, "GRLC", "USD", False)
                 rate2 = await get_rate_crypto(client, message, "GRLC", currency.upper(), False)
                 rate = rate1/rate2
+            else:
+                await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
+
+        data = []
+        tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
+        try:
+            ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
+        except requests.Timeout:
+            ex = None
+
+        if ex:
+            await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
+            soup = BeautifulSoup(ex.text, 'html.parser')
+            table = soup.find('table', attrs={'id': 'markets-table'})
+            table_body = table.find('tbody')
+
+            rows = table_body.find_all('tr')
+            for row in rows:
+                cols = row.find_all('td')
+                cols = [ele.text.strip() for ele in cols]
+                data.append([ele for ele in cols if ele])
 
             if rate:
-                data = []
-                tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
-                try:
-                    ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
-                except requests.Timeout:
-                    ex = None
-
-                if ex:
-                    await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
-                    soup = BeautifulSoup(ex.text, 'html.parser')
-                    table = soup.find('table', attrs={'id': 'markets-table'})
-                    table_body = table.find('tbody')
-
-                    rows = table_body.find_all('tr')
-                    for row in rows:
-                        cols = row.find_all('td')
-                        cols = [ele.text.strip() for ele in cols]
-                        data.append([ele for ele in cols if ele])
-
-                    # Calculate the price in the currency selected
-                    data = [[x[0], x[1], x[2], x[3], x[4], apply_rate(x[4], rate, currency)] for x in data] # Remove columns
-                    table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price", "Price ({})".format(currency.upper())])
-                    await client.send_message(message.channel, "```js\n{}```".format(table))
-                else:
-                    # Timeout
-                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+                # Calculate the price in the currency selected
+                data = [[x[0], x[1], x[2], x[3], x[4], apply_rate(x[4], rate, currency)] for x in data] # Remove columns
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price", "Price ({})".format(currency.upper())])
             else:
-                # Unable to get the currency
-                await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
-                await exchange(client, message)
-        else:
-            data = []
-            tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
-            try:
-                ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
-            except requests.Timeout:
-                ex = None
-
-            if ex:
-                await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
-                soup = BeautifulSoup(ex.text, 'html.parser')
-                table = soup.find('table', attrs={'id': 'markets-table'})
-                table_body = table.find('tbody')
-
-                rows = table_body.find_all('tr')
-                for row in rows:
-                    cols = row.find_all('td')
-                    cols = [ele.text.strip() for ele in cols]
-                    data.append([ele for ele in cols if ele])
-
                 data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
-                await client.send_message(message.channel, "```js\n{}```".format(table))
-            else:
-                # Timeout
-                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+
+            await client.send_message(message.channel, "```js\n{}```".format(table))
+        else:
+            # Timeout
+            await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
     @client.event
     async def on_ready():
