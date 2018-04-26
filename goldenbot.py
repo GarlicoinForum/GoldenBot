@@ -189,8 +189,8 @@ def main():
         return float(datas["price_{}".format(fiat.lower())])
 
     async def exchange(client, message, currency=None):
+        rate = None
         if currency:
-            rate = None
             if currency.upper() in ("BTC", "ETH", "LTC", "NANO", "GRLC"):
                 # Get the rate in USD of the crypto
                 rate = await get_rate_crypto(client, message, currency.upper(), "USD", False)
