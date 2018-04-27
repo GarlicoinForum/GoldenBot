@@ -371,6 +371,7 @@ def main():
         await client.wait_until_ready()
         channel = discord.Object(id=PRICE_CHANNEL)
         temp = await client.send_message(channel, '.') #Temporary message for exchange() function
+        await client.delete_message(temp) #Delete before update
 
         while not client.is_closed:
             if graph: await client.delete_message(graph) #Delete before update
