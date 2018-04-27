@@ -187,7 +187,7 @@ def main():
 
         return float(datas["price_{}".format(fiat.lower())])
 
-    async def exchange(client, message, currency=None):
+    async def exchange(client, message, currency=None, verbose=True):
         rate = None
         if currency:
             if currency.upper() in ("BTC", "ETH", "LTC", "NANO", "GRLC"):
@@ -200,17 +200,20 @@ def main():
                 rate2 = await get_rate_crypto(client, message, "GRLC", currency.upper(), False)
                 rate = rate1/rate2
             else:
-                await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
+                if verbose:
+                    await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
 
         data = []
-        tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
+        if verbose:
+            tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
         try:
             ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
         except requests.Timeout:
             ex = None
 
         if ex:
-            await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
+            if verbose:
+                await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
             soup = BeautifulSoup(ex.text, 'html.parser')
             table = soup.find('table', attrs={'id': 'markets-table'})
             table_body = table.find('tbody')
@@ -233,7 +236,8 @@ def main():
             return x #For background task to delete message
         else:
             # Timeout
-            await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+            if verbose:
+                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
     @client.event
     async def on_ready():
@@ -378,7 +382,7 @@ def main():
             if os.path.isfile("1d.png"):
                 graph = await client.send_file(channel,"1d.png")
             if exc: await client.delete_message(exc)
-            exc = await exchange(client,temp)
+            exc = await exchange(client,temp, False)
             await asyncio.sleep(5*60) #Every 5 minutes
 
     client.loop.create_task(background_update())
