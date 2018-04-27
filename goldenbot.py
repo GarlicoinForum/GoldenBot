@@ -321,7 +321,7 @@ def main():
 
         if message.content.startswith("!exchange"):
             if " " in message.content:
-                await exchange(client, message, message.content.split(" ")[1])
+                await exchange(client, message, currency=message.content.split(" ")[1])
             else:
                 await exchange(client, message)
 
@@ -382,7 +382,7 @@ def main():
             if os.path.isfile("1d.png"):
                 graph = await client.send_file(channel,"1d.png")
             if exc: await client.delete_message(exc)
-            exc = await exchange(client,temp, False)
+            exc = await exchange(client,temp, verbose=False)
             await asyncio.sleep(5*60) #Every 5 minutes
 
     client.loop.create_task(background_update())
