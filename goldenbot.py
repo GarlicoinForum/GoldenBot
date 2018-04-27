@@ -8,7 +8,6 @@ from time import sleep
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 
-
 def is_fiat(name):
     # TODO: put the tuple in the config file
     if name in ("USD", "EUR", "GBP", "AUD"):
@@ -91,11 +90,11 @@ def fstr(max_size, value):
 
 def main():
     client = discord.Client()
-
     conf = configparser.RawConfigParser()
     conf.read("config.txt")
 
     BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
+    PRICE_CHANNEL = conf.get('goldenbot_conf', 'PRICE_CHANNEL')
 
     async def convert_3(client, message, msg):
         # No rate given, get it from CoinMarketCap
@@ -230,7 +229,8 @@ def main():
                 data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
 
-            await client.send_message(message.channel, "```js\n{}```".format(table))
+            x = await client.send_message(message.channel, "```js\n{}```".format(table))
+            return x #For background task to delete message
         else:
             # Timeout
             await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
@@ -364,6 +364,23 @@ def main():
                         "            supported currencies: USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC, NANO" \
                         "```".format(message.author.id)
             await client.send_message(message.channel, help_text)
+
+    async def background_update():
+        #Displays/updates 1d graph and exchange info in PRICE_CHANNEL
+        graph, exc = None, None
+        await client.wait_until_ready()
+        channel = discord.Object(id=PRICE_CHANNEL)
+        temp = await client.send_message(channel, '.') #Temporary message for exchange() function
+
+        while not client.is_closed:
+            if graph: await client.delete_message(graph) #Delete before update
+            if os.path.isfile("1d.png"):
+                graph = await client.send_file(channel,"1d.png")
+            if exc: await client.delete_message(exc)
+            exc = exchange(client,temp)
+            await asyncio.sleep(5*60) #Every 5 minutes
+
+    client.loop.create_task(background_update())
 
     client.run(BOT_TOKEN)
 
