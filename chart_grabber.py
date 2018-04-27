@@ -10,7 +10,7 @@ class Thread(threading.Thread):
 
 
 def grab_chart(time_range):
-    sleeping_ranges = {"1d": 15 * 60,       # Updates every 15 minutes
+    sleeping_ranges = {"1d": 5 * 60,       # Updates every 5 minutes
                        "1w": 60 * 60,       # Updates every hour
                        "1m": 4 * 60 * 60,   # Updates every 4 hours
                        "3m": 11 * 60 * 60}  # Updates every 11 hours
