@@ -234,7 +234,7 @@ def main():
 
             if rate:
                 # Calculate the price in the currency selected
-                data = [x + [apply_rate(x[4].split(" ")[0])] for x in data]
+                data = [x + [apply_rate(x[4].split(" ")[0], rate, currency)] for x in data]
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)", "Price ({})".format(currency.upper())])
             else:
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)"])
