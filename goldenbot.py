@@ -220,17 +220,24 @@ def main():
 
             rows = table_body.find_all('tr')
             for row in rows:
+                #print(row)
+                p = row.find('span', class_="price")
+                v = row.find('span', class_="volume")
+                price_n = float(p.attrs['data-native'])
+                vol_n = v.attrs['data-native']
+
                 cols = row.find_all('td')
                 cols = [ele.text.strip() for ele in cols]
-                data.append([ele for ele in cols if ele])
+                #d = [ele for ele in cols if ele]
+                d = [cols[0],cols[1],cols[2],cols[3] + " (" + vol_n + ")",cols[4] + " (" + f'{price_n:.8f}' + ")"]
+                data.append(d)
 
             if rate:
                 # Calculate the price in the currency selected
                 data = [[x[0], x[1], x[2], x[3], x[4], apply_rate(x[4], rate, currency)] for x in data] # Remove columns
-                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price", "Price ({})".format(currency.upper())])
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)", "Price ({})".format(currency.upper())])
             else:
-                data = [[x[0], x[1], x[2], x[3], x[4]] for x in data] # Remove columns
-                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume", "Price"])
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)"])
 
             x = await client.send_message(message.channel, "```js\n{}```".format(table))
             return x #For background task to delete message
