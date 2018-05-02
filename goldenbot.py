@@ -243,7 +243,7 @@ def main():
 
                 total_vd += float(cols[3][1:].replace(",", "")) #Remove $ sign and commas
 
-                d = [cols[0],cols[1],cols[2],cols[3] + f" ({str(vol_n)})",cols[4] + f" ({price_n:.8f})"]
+                d = [cols[0],cols[1],cols[2],cols[3] + " ({})".format(str(vol_n)),cols[4] + " ({:.8f})".format(price_n)]
                 data.append(d)
 
             total_vd = str(round(total_vd))
@@ -256,9 +256,9 @@ def main():
             else:
                 #Add extra info
                 data.append(["","","","",""])
-                data.append(["",""," Aggregate:",f"${total_vd} {total_v}₲",f"${price_usd} ฿{price_btc:.8f}"])
-                data.append(["","","24h change:",f"{change_24h}%","",""])
-                data.append(["","","Market cap:",f"${mcap}"])
+                data.append(["",""," Aggregate:","${0} {1}₲".format(total_vd, total_v),"${0} ฿{1:.8f}".format(price_usd, price_btc)])
+                data.append(["","","24h change:","{}%".format(change_24h),"",""])
+                data.append(["","","Market cap:","${}".format(mcap)])
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)"])
 
             x = await client.send_message(message.channel, "```js\n{}```".format(table))
