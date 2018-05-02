@@ -208,10 +208,21 @@ def main():
             tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
         try:
             ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
+            price = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
         except requests.Timeout:
             ex = None
+            price = None
 
-        if ex:
+        if ex and price:
+            price = price.json()[0]
+            price_usd = price["price_usd"]
+            price_btc = float(price["price_btc"])
+            change_24h = price["percent_change_24h"]
+            mcap = price["market_cap_usd"]
+
+            total_v = 0 #Total volume
+            total_vd = 0 #Total volume (dollars)
+
             if verbose:
                 await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... Done!")
             soup = BeautifulSoup(ex.text, 'html.parser')
@@ -224,19 +235,30 @@ def main():
                 p = row.find('span', class_="price")
                 v = row.find('span', class_="volume")
                 price_n = float(p.attrs['data-native'])
-                vol_n = v.attrs['data-native']
+                vol_n = float(v.attrs['data-native'])
+                total_v += vol_n
 
                 cols = row.find_all('td')
                 cols = [ele.text.strip() for ele in cols]
-                #d = [ele for ele in cols if ele]
-                d = [cols[0],cols[1],cols[2],cols[3] + " (" + vol_n + ")",cols[4] + " (" + f'{price_n:.8f}' + ")"]
+
+                total_vd += float(cols[3][1:].replace(",", "")) #Remove $ sign and commas
+
+                d = [cols[0],cols[1],cols[2],cols[3] + f" ({str(vol_n)})",cols[4] + f" ({price_n:.8f})"]
                 data.append(d)
+
+            total_vd = str(round(total_vd))
+            total_v = str(round(total_v))
 
             if rate:
                 # Calculate the price in the currency selected
                 data = [x + [apply_rate(x[4].split(" ")[0], rate, currency)] for x in data]
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)", "Price ({})".format(currency.upper())])
             else:
+                #Add extra info
+                data.append(["","","","",""])
+                data.append(["",""," Aggregate:",f"${total_vd} {total_v}₲",f"${price_usd} ฿{price_btc:.8f}"])
+                data.append(["","","24h change:",f"{change_24h}%","",""])
+                data.append(["","","Market cap:",f"${mcap}"])
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)"])
 
             x = await client.send_message(message.channel, "```js\n{}```".format(table))
