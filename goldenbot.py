@@ -3,8 +3,9 @@ import requests
 import asyncio
 import configparser
 import os
+import sqlite3
 
-from time import sleep
+from time import sleep, time
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 
@@ -86,6 +87,20 @@ def fstr(max_size, value):
     formater = "{" + ":.{}f".format(f_part) + "}"
 
     return formater.format(value)
+
+
+def get_change_db(column):
+    # Calculate 24h ago timestamps
+    min_t = int(time()) - 24 * 60 * 60
+
+    # Get prices that are >= min_t
+    sql = "SELECT `{0}` FROM `cmc_exchanges` WHERE `timestamp` >= {1}".format(column, min_t)
+    with sqlite3.connect("db.sqlite3") as db:
+        cursor = db.cursor()
+        cursor.execute(sql)
+        result = cursor.fetchone()
+
+    return result[0]
 
 
 def main():
@@ -243,7 +258,19 @@ def main():
 
                 total_vd += float(cols[3][1:].replace(",", "")) #Remove $ sign and commas
 
-                d = [cols[0],cols[1],cols[2],cols[3] + " ({})".format(str(vol_n)),cols[4] + " ({:.8f})".format(price_n)]
+                # Get the % change on 24h from the db
+                price = float(p.text.strip().replace("$", ""))
+                price_24h = get_change_db("{0}_{1}".format(cols[1], cols[2]))
+                change = (price / price_24h - 1) * 100
+                if change < 0:
+                    change = "-{:.2f}%".format(change * -1)
+                elif change > 0:
+                    change = "+{:.2f}%".format(change)
+                else:
+                    change = "0.00%"
+
+                d = [cols[0], cols[1], cols[2], cols[3] + " ({})".format(str(vol_n)),
+                     cols[4] + " ({:.8f})".format(price_n), change]
                 data.append(d)
 
             total_vd = str(round(total_vd))
@@ -252,14 +279,15 @@ def main():
             if rate:
                 # Calculate the price in the currency selected
                 data = [x + [apply_rate(x[4].split(" ")[0], rate, currency)] for x in data]
-                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)", "Price ({})".format(currency.upper())])
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)",
+                                                "Price ({})".format(currency.upper()), "24h change"])
             else:
                 #Add extra info
                 data.append(["","","","",""])
                 data.append(["",""," Aggregate:","${0} {1}₲".format(total_vd, total_v),"${0} ฿{1:.8f}".format(price_usd, price_btc)])
                 data.append(["","","24h change:","{}%".format(change_24h),"",""])
                 data.append(["","","Market cap:","${}".format(mcap)])
-                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)"])
+                table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)", "24h change"])
 
             x = await client.send_message(message.channel, "```js\n{}```".format(table))
             return x #For background task to delete message
