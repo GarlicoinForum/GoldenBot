@@ -32,10 +32,11 @@ def grab_chart(time_range):
 
 
 def grab_exchanges():
+    next_cleanup = int(time.time()) + 24 * 60 * 60
     while True:
         # Get exchanges' prices and store them in a database every minute
         d = {}
-        next_cleanup = int(time.time()) + 24 * 60 * 60
+
         try:
             ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
         except requests.Timeout:
@@ -71,10 +72,10 @@ def grab_exchanges():
                 cursor.execute(sql)
                 db.commit()
 
-        # Once daily clean the old data (older than 1 day)
+        # Once daily clean the old data (older than 7 days)
         if time.time() >= next_cleanup:
             timestamp = int(time.time())
-            limit_timestamp = timestamp - 24 * 60 * 60
+            limit_timestamp = timestamp - 7 * 24 * 60 * 60
             sql = "DELETE FROM `cmc_exchanges` WHERE `timestamp` <= {}".format(limit_timestamp)
 
             with sqlite3.connect("db.sqlite3") as db:
