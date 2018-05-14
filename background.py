@@ -17,6 +17,66 @@ class ExchangeThread(threading.Thread):
         threading.Thread.__init__(self, target=grab_exchanges)
         self.start()
 
+class SaveTickerThread(threading.Thread):
+    def __init__(self, ticker, timestamp, table, period):
+        threading.Thread.__init__(self, target=save_ticker_db, args=(ticker, timestamp, table, period,))
+        self.start()
+
+class RequestsThread(threading.Thread):
+    def __init__(self, url):
+        self._return = []
+        threading.Thread.__init__(self, target=get_ticker, args=(url, self._return,))
+        self.start()
+    def join(self):
+        threading.Thread.join(self)
+        return self._return[0]
+
+
+def get_ticker(url, _return):
+    try:
+        _return.append(requests.get(url, timeout=10))
+    except requests.Timeout:
+        _return.append(None)
+
+
+def save_ticker_db(ticker, timestamp, table, period):
+    # Get the last entry in the DB
+    with lock:
+        with sqlite3.connect("db.sqlite3") as db:
+            cursor = db.cursor()
+            cursor.execute("SELECT * FROM `{}` ORDER BY `id` DESC LIMIT 1;".format(table))
+            # DB columns : id, timestamp, open, close, high, low
+            id_db, timestamp_db, open_db, close_db, high, low = cursor.fetchone()
+
+    sqls = []
+    # Check if timestamp is < than the one on the DB + 15 minutes
+    if timestamp < timestamp_db + period:
+        # Update the close price if needed
+        if close_db != ticker:
+            sqls.append("UPDATE `{0}` SET `close` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+        # Check if price is higher than H or lower than L and update H & L accordingly
+        if ticker > high:
+            sqls.append("UPDATE `{0}` SET `high` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+        elif ticker < low:
+            sqls.append("UPDATE `{0}` SET `low` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+    else:
+        # Set the close price at ticker and set a new record using timestamp and open, low & high price
+        sqls.append("UPDATE `{0}` SET `close` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+        if ticker > high:
+            sqls.append("UPDATE `{0}` SET `high` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+        elif ticker < low:
+            sqls.append("UPDATE `{0}` SET `low` = '{1}' WHERE `id` = {2};".format(table, ticker, id_db))
+        sqls.append("INSERT INTO `{0}` (`timestamp`, `open`, `close`, `high`, `low`) " \
+                    "VALUES ({1}, {2}, {2}, {2}, {2})".format(table, timestamp_db + period, ticker))
+
+    if sqls:
+        with lock:
+            with sqlite3.connect("db.sqlite3") as db:
+                cursor = db.cursor()
+                for sql in sqls:
+                    cursor.execute(sql)
+                db.commit()
+
 
 def grab_chart(time_range):
     sleeping_ranges = {"1d": 5 * 60,       # Updates every 5 minutes
@@ -95,3 +155,49 @@ lock = threading.Lock()
 ExchangeThread()
 for time_range in ["1d", "1w", "1m", "3m"]:
     GraphThread(time_range)
+
+while True:
+    # Get the current value of GRLC from CMC
+    timestamp = int(time.time())
+    cmc = RequestsThread("https://api.coinmarketcap.com/v2/ticker/2475/?convert=BTC").join()
+    nanex = RequestsThread("https://nanex.co/api/public/ticker/grlcnano").join()
+    cb = RequestsThread("https://api.crypto-bridge.org/api/v1/ticker").join()
+    ts = RequestsThread("https://tradesatoshi.com/api/public/getticker?market=GRLC_BTC").join()
+
+    if cmc:
+        cmc_usd = float(cmc.json()["data"]["quotes"]["USD"]["price"])
+        SaveTickerThread(cmc_usd, timestamp, "cmc_usd_1d", 15 * 60)
+        SaveTickerThread(cmc_usd, timestamp, "cmc_usd_1w", 60 * 60)
+        SaveTickerThread(cmc_usd, timestamp, "cmc_usd_1m", 4 * 60 * 60)
+        SaveTickerThread(cmc_usd, timestamp, "cmc_usd_3m", 12 * 60 * 60)
+
+        cmc_btc = float(cmc.json()["data"]["quotes"]["BTC"]["price"])
+        SaveTickerThread(cmc_btc, timestamp, "cmc_btc_1d", 15 * 60)
+        SaveTickerThread(cmc_btc, timestamp, "cmc_btc_1w", 60 * 60)
+        SaveTickerThread(cmc_btc, timestamp, "cmc_btc_1m", 4 * 60 * 60)
+        SaveTickerThread(cmc_btc, timestamp, "cmc_btc_3m", 12 * 60 * 60)
+
+    if nanex:
+        nanex = float(nanex.json()["last_trade"])
+        SaveTickerThread(nanex, timestamp, "nanex_1d", 15 * 60)
+        SaveTickerThread(nanex, timestamp, "nanex_1w", 60 * 60)
+        SaveTickerThread(nanex, timestamp, "nanex_1m", 4 * 60 * 60)
+        SaveTickerThread(nanex, timestamp, "nanex_3m", 12 * 60 * 60)
+
+    if cb:
+        for i in cb.json():
+            if i["id"] == "GRLC_BTC":
+                cb = float(i["last"])
+        SaveTickerThread(cb, timestamp, "cb_1d", 15 * 60)
+        SaveTickerThread(cb, timestamp, "cb_1w", 60 * 60)
+        SaveTickerThread(cb, timestamp, "cb_1m", 4 * 60 * 60)
+        SaveTickerThread(cb, timestamp, "cb_3m", 12 * 60 * 60)
+
+    if ts:
+        ts = float(ts.json()["result"]["last"])
+        SaveTickerThread(ts, timestamp, "ts_1d", 15 * 60)
+        SaveTickerThread(ts, timestamp, "ts_1w", 60 * 60)
+        SaveTickerThread(ts, timestamp, "ts_1m", 4 * 60 * 60)
+        SaveTickerThread(ts, timestamp, "ts_3m", 12 * 60 * 60)
+
+    time.sleep((timestamp + 60) - int(time.time()))
