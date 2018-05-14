@@ -66,11 +66,11 @@ def grab_exchanges():
             sql = sql.format(timestamp, d["Trade Satoshi_GRLC/BTC"], d["CoinFalcon_GRLC/BTC"], d["CryptoBridge_GRLC/BTC"],
                              d["Nanex_GRLC/NANO"], d["Trade Satoshi_GRLC/LTC"], d["Trade Satoshi_GRLC/BCH"],
                              d["Trade Satoshi_GRLC/DOGE"],d["Trade Satoshi_GRLC/USDT"], d["CoinFalcon_GRLC/ETH"])
-
-            with sqlite3.connect("db.sqlite3") as db:
-                cursor = db.cursor()
-                cursor.execute(sql)
-                db.commit()
+            with lock:
+                with sqlite3.connect("db.sqlite3") as db:
+                    cursor = db.cursor()
+                    cursor.execute(sql)
+                    db.commit()
 
         # Once daily clean the old data (older than 7 days)
         if time.time() >= next_cleanup:
@@ -78,10 +78,11 @@ def grab_exchanges():
             limit_timestamp = timestamp - 7 * 24 * 60 * 60
             sql = "DELETE FROM `cmc_exchanges` WHERE `timestamp` <= {}".format(limit_timestamp)
 
-            with sqlite3.connect("db.sqlite3") as db:
-                cursor = db.cursor()
-                cursor.execute(sql)
-                db.commit()
+            with lock:
+                with sqlite3.connect("db.sqlite3") as db:
+                    cursor = db.cursor()
+                    cursor.execute(sql)
+                    db.commit()
             next_cleanup = timestamp + 24 * 60 * 60
 
         # Sleep for a minute
