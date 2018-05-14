@@ -200,4 +200,6 @@ while True:
         SaveTickerThread(ts, timestamp, "ts_1m", 4 * 60 * 60)
         SaveTickerThread(ts, timestamp, "ts_3m", 12 * 60 * 60)
 
+    # TODO: CF ticker (uses wss not http)
+
     time.sleep((timestamp + 60) - int(time.time()))
