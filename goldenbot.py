@@ -468,7 +468,7 @@ def main():
                         "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
                         "!exchange : Displays all the current rates by exchange (optional: convert it in another currency)\n" \
                         "            Usage : !exchange [currency]\n" \
-                        "            supported currencies: EUR, GBP, AUD, all CMC crytpos" \
+                        "            supported currencies: EUR, GBP, AUD, all CMC crytpos\n" \
                         "!graph    : Displays the price chart.\n" \
                         "            Usage : !graph [1d|1w|1m|3m]\n" \
                         "!conv     : Converts an amount of one currency to another\n" \
