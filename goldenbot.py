@@ -367,7 +367,26 @@ def main():
                 float(msg[0].replace(",", "."))
             except ValueError:
                 # The amount isn't a numeric value
-                await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
+                if len(msg) >= 2:
+                    msg = [1] + msg
+                    # Show a custom message if currency1 == currency2
+                    if msg[1] == msg[2]:
+                        await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+
+                    # Check if there is a rate
+                    elif len(msg) == 3:
+                        await convert_3(client, message, msg)
+
+                    elif len(msg) == 4:
+                        await convert_4(client, message, msg)
+
+                    else:
+                        # Not enough parameters sent
+                        error_txt = "Not enough parameters given : `!conv [amount] [cur1] [cur2] [rate (optional)]`\n" \
+                                    "[cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO"
+                        await client.send_message(message.channel, error_txt)
+                else:
+                    await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
 
             else:
                 # Show a custom message if currency1 == currency2
