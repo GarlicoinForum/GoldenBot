@@ -53,7 +53,10 @@ def apply_rate(value, rate, currency):
     formats = {"BTC": ("฿", 8), "ETH": ("Ξ", 8), "LTC": ("Ł", 8), "NANO": ("η", 5),
                "GRLC": ("₲", 5), "EUR": ("€", 6), "GBP": ("£", 6), "AUD": ("$", 6)}
 
-    formater = "{0}{{:.{1}f}}".format(*formats[currency.upper()])
+    try:
+        formater = "{0}{{:.{1}f}}".format(*formats[currency.upper()])
+    except KeyError:
+        formater = "{0}{{:.{1}f}}".format(currency.upper(), 6)
 
     return formater.format(result)
 
