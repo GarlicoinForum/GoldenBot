@@ -17,6 +17,11 @@ class ExchangeThread(threading.Thread):
         threading.Thread.__init__(self, target=grab_exchanges)
         self.start()
 
+class CMC_API_Thread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self, target=update_cmc_api)
+        self.start()
+
 class SaveTickerThread(threading.Thread):
     def __init__(self, ticker, timestamp, table, period):
         threading.Thread.__init__(self, target=save_ticker_db, args=(ticker, timestamp, table, period,))
@@ -37,6 +42,33 @@ def get_ticker(url, _return):
         _return.append(requests.get(url, timeout=10))
     except requests.Timeout:
         _return.append(None)
+
+
+def update_cmc_api():
+    while True:
+        try:
+            r = requests.get("https://api.coinmarketcap.com/v2/listings/", timeout=10)
+        except requests.Timeout:
+            r = None
+
+        if r:
+            sqls = []
+            for item in r.json()["data"]:
+                sqls.append("INSERT INTO `cmc_api` (`id`, `symbol`) VALUES ('{0}', '{1}');".format(item["id"], item["symbol"]))
+
+            with lock:
+                with sqlite3.connect("db.sqlite3") as db:
+                    cursor = db.cursor()
+                    cursor.execute("DROP TABLE `cmc_api`;")
+                    cursor.execute("CREATE TABLE `cmc_api` (" \
+                                   "`id`    INTEGER NOT NULL UNIQUE," \
+                                   "`symbol`    TEXT NOT NULL," \
+                                   "PRIMARY KEY(`id`,`symbol`));")
+                    for sql in sqls:
+                        cursor.execute(sql)
+                    db.commit()
+
+        time.sleep(24 * 60 * 60)
 
 
 def save_ticker_db(ticker, timestamp, table, period):
@@ -153,6 +185,7 @@ lock = threading.Lock()
 
 # Using threads so that time.sleep() doesn't stop all other updates
 ExchangeThread()
+CMC_API_Thread()
 for time_range in ["1d", "1w", "1m", "3m"]:
     GraphThread(time_range)
 
