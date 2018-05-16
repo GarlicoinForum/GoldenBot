@@ -487,7 +487,7 @@ def main():
             if os.path.isfile("1d.png"):
                 graph = await client.send_file(channel, "1d.png")
             if exc: await client.delete_message(exc)
-            if faucet: await client.delete_message(fct)
+            if fct: await client.delete_message(fct)
             exc = await exchange(client, temp, verbose=False)
             fct = await faucet(client, temp)
 
