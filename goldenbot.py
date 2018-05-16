@@ -71,8 +71,8 @@ def get_fiats():
 
     usd = usd_eur.json()["data"]["quotes"]["USD"]["price"]
     eur = usd_eur.json()["data"]["quotes"]["EUR"]["price"]
-    gbp = gbp.json()[0]["data"]["quotes"]["GBP"]["price"]
-    aud = aud.json()[0]["data"]["quotes"]["AUD"]["price"]
+    gbp = gbp.json()["data"]["quotes"]["GBP"]["price"]
+    aud = aud.json()["data"]["quotes"]["AUD"]["price"]
 
     return float(usd), float(eur), float(gbp), float(aud)
 
