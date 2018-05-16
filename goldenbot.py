@@ -124,7 +124,7 @@ def main():
             fiat2_btc = await get_rate_crypto(client, message, "BTC", curr2)
 
             if fiat1_btc and fiat2_btc:
-                rate = fiat1_btc / fiat2_btc
+                rate = fiat2_btc / fiat1_btc
                 conv_amount = amount * rate
                 await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
