@@ -56,7 +56,7 @@ def apply_rate(value, rate, currency):
     try:
         formater = "{0}{{:.{1}f}}".format(*formats[currency.upper()])
     except KeyError:
-        formater = "{0}{{:.{1}f}}".format(currency.upper(), 6)
+        formater = "{0} {{:.{1}f}}".format(currency.upper(), 6)
 
     return formater.format(result)
 
