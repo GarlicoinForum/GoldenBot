@@ -61,8 +61,8 @@ def apply_rate(value, rate, currency):
 def get_fiats():
     try:
         usd_eur = requests.get("{}?convert=EUR".format(cmc_api_url("GRLC")), timeout=10)
-        gbp = requests.get("{}?convert=GBP".format(cmc_api_url("GRLC"), timeout=10)
-        aud = requests.get("{}?convert=AUD".format(cmc_api_url("GRLC"), timeout=10)
+        gbp = requests.get("{}?convert=GBP".format(cmc_api_url("GRLC")), timeout=10)
+        aud = requests.get("{}?convert=AUD".format(cmc_api_url("GRLC")), timeout=10)
     except requests.Timeout:
         return None
 
