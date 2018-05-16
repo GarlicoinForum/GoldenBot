@@ -9,6 +9,16 @@ from time import sleep, time
 from tabulate import tabulate
 from bs4 import BeautifulSoup
 
+
+def cmc_api_url(symbol):
+    with sqlite3.connect("db.sqlite3") as db:
+        cursor = db.cursor()
+        cursor.execute("SELECT `id` FROM `cmc_api` WHERE `symbol` = '{}'".format(symbol.upper()))
+        data = cursor.fetchone()
+
+    return "https://api.coinmarketcap.com/v2/ticker/{}/".format(data[0])
+
+
 def is_fiat(name):
     # TODO: put the tuple in the config file
     if name in ("USD", "EUR", "GBP", "AUD"):
@@ -18,8 +28,14 @@ def is_fiat(name):
 
 
 def is_crypto(name):
-    # TODO: put the tuple in the config file
-    if name in ("GRLC", "BTC", "ETH", "LTC", "NANO"):
+    with sqlite3.connect("db_api.sqlite3") as db:
+        cursor = db.cursor()
+        cursor.execute("SELECT `symbol` FROM `cmc_api`")
+        datas = cursor.fetchall()
+
+    cryptos = [data[0] for data in datas]
+
+    if name.upper() in cryptos:
         return True
     else:
         return False
@@ -44,37 +60,37 @@ def apply_rate(value, rate, currency):
 
 def get_fiats():
     try:
-        usd_eur = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=EUR", timeout=10)
-        gbp = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=GBP", timeout=10)
-        aud = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/?convert=AUD", timeout=10)
+        usd_eur = requests.get("{}?convert=EUR".format(cmc_api_url("GRLC")), timeout=10)
+        gbp = requests.get("{}?convert=GBP".format(cmc_api_url("GRLC"), timeout=10)
+        aud = requests.get("{}?convert=AUD".format(cmc_api_url("GRLC"), timeout=10)
     except requests.Timeout:
         return None
 
-    usd_eur = usd_eur.json()[0]
-    gbp = gbp.json()[0]
-    aud = aud.json()[0]
+    usd = usd_eur.json()["data"]["quotes"]["USD"]["price"]
+    eur = usd_eur.json()["data"]["quotes"]["EUR"]["price"]
+    gbp = gbp.json()[0]["data"]["quotes"]["GBP"]["price"]
+    aud = aud.json()[0]["data"]["quotes"]["AUD"]["price"]
 
-    return float(usd_eur["price_usd"]), float(usd_eur["price_eur"]), float(gbp["price_gbp"]), float(aud["price_aud"])
+    return float(usd), float(eur), float(gbp), float(aud)
 
 
 def get_cryptos():
     try:
-        grlc_btc = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
-        eth_btc = requests.get("https://api.coinmarketcap.com/v1/ticker/ethereum/", timeout=10)
-        ltc_btc = requests.get("https://api.coinmarketcap.com/v1/ticker/litecoin/", timeout=10)
-        nano_btc = requests.get("https://api.coinmarketcap.com/v1/ticker/nano/", timeout=10)
+        grlc_btc = requests.get("{}?convert=BTC".format(cmc_api_url("GRLC")), timeout=10)
+        eth_btc = requests.get("{}?convert=BTC".format(cmc_api_url("ETH")), timeout=10)
+        ltc_btc = requests.get("{}?convert=BTC".format(cmc_api_url("LTC")), timeout=10)
+        nano_btc = requests.get("{}?convert=BTC".format(cmc_api_url("NANO")), timeout=10)
     except requests.Timeout:
         return None
 
-    grlc_btc = grlc_btc.json()[0]
-    eth_btc = eth_btc.json()[0]
-    ltc_btc = ltc_btc.json()[0]
-    nano_btc = nano_btc.json()[0]
+    grlc_btc = float(grlc_btc.json()["data"]["quotes"]["BTC"]["price"])
+    eth_btc = float(eth_btc.json()["data"]["quotes"]["BTC"]["price"])
+    ltc_btc = float(ltc_btc.json()["data"]["quotes"]["BTC"]["price"])
+    nano_btc = float(nano_btc.json()["data"]["quotes"]["BTC"]["price"])
 
-    grlc_btc = float(grlc_btc["price_btc"])
-    grlc_eth = grlc_btc / float(eth_btc["price_btc"])
-    grlc_ltc = grlc_btc / float(ltc_btc["price_btc"])
-    grlc_nano = grlc_btc / float(nano_btc["price_btc"])
+    grlc_eth = grlc_btc / eth_btc
+    grlc_ltc = grlc_btc / ltc_btc
+    grlc_nano = grlc_btc / nano_btc
 
     return grlc_btc, grlc_eth, grlc_ltc, grlc_nano
 
@@ -191,17 +207,11 @@ def main():
             await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
     async def get_rate_crypto(client, message, crypto, fiat="USD", verbose=True):
-        # TODO: put the dict in the config file
         # Somehow https://api.coinmarketcap.com/v1/ticker/bitcoin/?convert=BTC doesn't give an error!
-        crypto_name = {"GRLC": "garlicoin",
-                       "BTC": "bitcoin",
-                       "ETH": "ethereum",
-                       "LTC": "litecoin",
-                       "NANO": "nano"}
         try:
             if verbose:
                 tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
-            datas = requests.get("https://api.coinmarketcap.com/v1/ticker/{0}/?convert={1}".format(crypto_name[crypto], fiat), timeout=10)
+            datas = requests.get("{0}?convert={1}".format(cmc_api_url(crypto), fiat), timeout=10)
             if verbose:
                 await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
         except requests.Timeout:
@@ -209,14 +219,13 @@ def main():
                 await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
             return None
 
-        datas = datas.json()[0]
-
-        return float(datas["price_{}".format(fiat.lower())])
+        price = datas.json()["data"]["quotes"][fiat]["price"]
+        return float(price)
 
     async def exchange(client, message, currency=None, verbose=True):
         rate = None
         if currency:
-            if currency.upper() in ("BTC", "ETH", "LTC", "NANO", "GRLC"):
+            if is_crypto(currency):
                 # Get the rate in USD of the crypto
                 rate = await get_rate_crypto(client, message, currency.upper(), "USD", False)
 
@@ -227,22 +236,21 @@ def main():
                 rate = rate1/rate2
             else:
                 if verbose:
-                    await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO)".format(currency))
+                    await client.send_message(message.channel, "Unknown currency '{}' (Available : EUR, GBP, AUD, all CMC cryptos)".format(currency))
 
         data = []
         if verbose:
             tmp = await client.send_message(message.channel, "Acquiring exchange rates from CoinMarketCap...")
         try:
             ex = requests.get("https://coinmarketcap.com/currencies/garlicoin/#markets", timeout=10)
-            price = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
+            price = requests.get("{}?convert=BTC".format(cmc_api_url("GRLC")), timeout=10)
         except requests.Timeout:
             ex = None
             price = None
 
         if ex and price:
-            price = price.json()[0]
-            price_usd = price["price_usd"]
-            price_btc = float(price["price_btc"])
+            price_usd = float(price.json()["data"]["quotes"]["USD"]["price"])
+            price_btc = float(price.json()["data"]["quotes"]["BTC"]["price"])
             change_24h = price["percent_change_24h"]
             mcap = price["market_cap_usd"]
 
@@ -420,7 +428,7 @@ def main():
         if message.content.startswith("!net"):
             tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
             try:
-                price = requests.get("https://api.coinmarketcap.com/v1/ticker/garlicoin/", timeout=10)
+                price = requests.get(cmc_api_url("GRLC"), timeout=10)
                 diff = requests.get("https://garli.co.in/api/getdifficulty", timeout=10)
                 blocks = requests.get("https://garli.co.in/api/getblockcount", timeout=10)
                 hrate = requests.get("https://garli.co.in/api/getnetworkhashps", timeout=10)
@@ -430,7 +438,7 @@ def main():
 
             if price:
                 await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
-                price = round(float(price.json()[0]["price_usd"]), 6)
+                price = round(float(price.json()["data"]["quotes"]["USD"]["price"]), 6)
                 diff = round(diff.json(), 2)
                 blocks = blocks.json()
                 hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
