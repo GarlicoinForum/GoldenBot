@@ -468,12 +468,12 @@ def main():
                         "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
                         "!exchange : Displays all the current rates by exchange (optional: convert it in another currency)\n" \
                         "            Usage : !exchange [currency]\n" \
-                        "            supported currencies: EUR, GBP, AUD, BTC, ETH, LTC, NANO" \
+                        "            supported currencies: EUR, GBP, AUD, all CMC crytpos" \
                         "!graph    : Displays the price chart.\n" \
                         "            Usage : !graph [1d|1w|1m|3m]\n" \
                         "!conv     : Converts an amount of one currency to another\n" \
                         "            Usage: !conv [amount] [cur1] [cur2] [rate (optional)]\n" \
-                        "            supported currencies: USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC, NANO" \
+                        "            supported currencies: USD, EUR, GBP, AUD, all CMC crytpos" \
                         "```".format(message.author.id)
             await client.send_message(message.channel, help_text)
 
