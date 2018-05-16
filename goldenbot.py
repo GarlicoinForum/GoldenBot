@@ -478,7 +478,9 @@ def main():
         await client.wait_until_ready()
         channel = discord.Object(id=PRICE_CHANNEL)
         temp = await client.send_message(channel, '.') #Temporary message for exchange() function
+        temp2 = await client.send_message(channel, '.') #Temporary message for faucet() function
         await client.delete_message(temp) #Delete before update
+        await client.delete_message(temp2) #Delete before update
 
         while not client.is_closed:
             if graph: await client.delete_message(graph) #Delete before update
@@ -487,7 +489,7 @@ def main():
             if exc: await client.delete_message(exc)
             if faucet: await client.delete_message(faucet)
             exc = await exchange(client, temp, verbose=False)
-            faucet = await faucet(client, channel)
+            faucet = await faucet(client, temp2)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
