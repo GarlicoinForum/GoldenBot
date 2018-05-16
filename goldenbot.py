@@ -368,7 +368,7 @@ def main():
             except ValueError:
                 # The amount isn't a numeric value
                 if len(msg) >= 2:
-                    msg = [1] + msg
+                    msg = ["1"] + msg
                     # Show a custom message if currency1 == currency2
                     if msg[1] == msg[2]:
                         await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
