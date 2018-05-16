@@ -252,7 +252,7 @@ def main():
             price_usd = float(price.json()["data"]["quotes"]["USD"]["price"])
             price_btc = float(price.json()["data"]["quotes"]["BTC"]["price"])
             change_24h = float(price.json()["data"]["quotes"]["USD"]["percent_change_24h"]
-            mcap = float(price.json()["data"]["quotes"]["USD"]["market_cap"]
+            mcap = float(price.json()["data"]["quotes"]["USD"]["market_cap"])
 
             total_v = 0 #Total volume
             total_vd = 0 #Total volume (dollars)
