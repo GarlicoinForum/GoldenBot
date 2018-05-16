@@ -488,8 +488,8 @@ def main():
                 graph = await client.send_file(channel, "1d.png")
             if exc: await client.delete_message(exc)
             if faucet: await client.delete_message(faucet)
-            exc = await exchange(client, temp, verbose=False)
-            faucet = await faucet(client, temp2)
+            exc = await exchange(client, channel, verbose=False)
+            faucet = await faucet(client, channel)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
