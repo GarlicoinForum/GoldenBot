@@ -303,6 +303,18 @@ def main():
 
     @client.event
     async def on_message(message):
+        if message.content.startswith("!faucet"):
+            # Get the current balance from https://faucet.garlicoin.co.uk/
+            try:
+                r = requests.get("https://faucet.garlicoin.co.uk/", timeout=10)
+                soup = BeautifulSoup(r.text, 'html.parser')
+                h2 = soup.find('h2')
+                balance = h2.text.replace("Current Balance ", "")
+                await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
+            except requests.Timeout:
+                await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+
+
         if message.content.startswith("!fiat"):
             # Get the GRLC price in USD, EUR, GBP & AUD
             tmp = await client.send_message(message.channel, "Acquiring fiat rates from CoinMarketCap...")
@@ -412,6 +424,7 @@ def main():
         if message.content.startswith("!help"):
             help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n```" \
                         "!help     : Displays a list of commands and what they do\n" \
+                        "!faucet   : Displays faucet url and current balance\n" \
                         "!fiat     : Displays current price of GRLC in FIATs\n" \
                         "!crypto   : Displays current price of GRLC in Cryptos\n" \
                         "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
