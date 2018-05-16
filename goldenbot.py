@@ -476,7 +476,7 @@ def main():
 
     async def background_update():
         #Displays/updates 1d graph and exchange info in PRICE_CHANNEL
-        graph, exc, faucet = None, None, None
+        graph, exc, fct = None, None, None
         await client.wait_until_ready()
         channel = discord.Object(id=PRICE_CHANNEL)
         temp = await client.send_message(channel, '.') #Temporary message for exchange() function
@@ -487,9 +487,9 @@ def main():
             if os.path.isfile("1d.png"):
                 graph = await client.send_file(channel, "1d.png")
             if exc: await client.delete_message(exc)
-            if faucet: await client.delete_message(faucet)
+            if faucet: await client.delete_message(fct)
             exc = await exchange(client, temp, verbose=False)
-            faucet = await faucet(client, temp)
+            fct = await faucet(client, temp)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
