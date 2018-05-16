@@ -130,14 +130,16 @@ def main():
     async def faucet(client, message):
         try:
             r = requests.get("https://faucet.garlicoin.co.uk/", timeout=10)
+        except requests.Timeout:
+            tmp = await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+            return tmp
+
+        else:
             soup = BeautifulSoup(r.text, 'html.parser')
             h2 = soup.find('h2')
             balance = h2.text.replace("Current Balance ", "")
             tmp = await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
-        except requests.Timeout:
-            tmp = await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
-
-        return tmp
+            return tmp
 
 
     async def convert_3(client, message, msg):
@@ -478,9 +480,7 @@ def main():
         await client.wait_until_ready()
         channel = discord.Object(id=PRICE_CHANNEL)
         temp = await client.send_message(channel, '.') #Temporary message for exchange() function
-        temp2 = await client.send_message(channel, '.') #Temporary message for faucet() function
         await client.delete_message(temp) #Delete before update
-        await client.delete_message(temp2) #Delete before update
 
         while not client.is_closed:
             if graph: await client.delete_message(graph) #Delete before update
@@ -488,8 +488,8 @@ def main():
                 graph = await client.send_file(channel, "1d.png")
             if exc: await client.delete_message(exc)
             if faucet: await client.delete_message(faucet)
-            exc = await exchange(client, channel, verbose=False)
-            faucet = await faucet(client, channel)
+            exc = await exchange(client, temp, verbose=False)
+            faucet = await faucet(client, temp)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
