@@ -306,7 +306,7 @@ def main():
                 # Calculate the price in the currency selected
                 data = [x + [apply_rate(x[4].split(" ")[0], rate, currency)] for x in data]
                 table = tabulate(data, headers=["No", "Exchange", "Pair", "Volume (native)", "Price (native)",
-                                                "Price ({})".format(currency.upper()), "24h change"])
+                                                 "24h change", "Price ({})".format(currency.upper())])
             else:
                 #Add extra info
                 data.append(["","","","",""])
