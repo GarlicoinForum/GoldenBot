@@ -28,7 +28,7 @@ def is_fiat(name):
 
 
 def is_crypto(name):
-    with sqlite3.connect("db_api.sqlite3") as db:
+    with sqlite3.connect("db.sqlite3") as db:
         cursor = db.cursor()
         cursor.execute("SELECT `symbol` FROM `cmc_api`")
         datas = cursor.fetchall()
