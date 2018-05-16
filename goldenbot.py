@@ -111,6 +111,17 @@ def main():
     BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
     PRICE_CHANNEL = conf.get('goldenbot_conf', 'PRICE_CHANNEL')
 
+    async def faucet(client, message):
+        try:
+            r = requests.get("https://faucet.garlicoin.co.uk/", timeout=10)
+            soup = BeautifulSoup(r.text, 'html.parser')
+            h2 = soup.find('h2')
+            balance = h2.text.replace("Current Balance ", "")
+            await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
+        except requests.Timeout:
+            await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+
+
     async def convert_3(client, message, msg):
         # No rate given, get it from CoinMarketCap
         amount = float(msg[0].replace(",", ".")) # In case someone sends 10,2 GRLC instead of 10.2
@@ -305,14 +316,7 @@ def main():
     async def on_message(message):
         if message.content.startswith("!faucet"):
             # Get the current balance from https://faucet.garlicoin.co.uk/
-            try:
-                r = requests.get("https://faucet.garlicoin.co.uk/", timeout=10)
-                soup = BeautifulSoup(r.text, 'html.parser')
-                h2 = soup.find('h2')
-                balance = h2.text.replace("Current Balance ", "")
-                await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
-            except requests.Timeout:
-                await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+            await faucet(client, message)
 
 
         if message.content.startswith("!fiat"):
@@ -460,7 +464,7 @@ def main():
 
     async def background_update():
         #Displays/updates 1d graph and exchange info in PRICE_CHANNEL
-        graph, exc = None, None
+        graph, exc, faucet = None, None, None
         await client.wait_until_ready()
         channel = discord.Object(id=PRICE_CHANNEL)
         temp = await client.send_message(channel, '.') #Temporary message for exchange() function
@@ -469,9 +473,12 @@ def main():
         while not client.is_closed:
             if graph: await client.delete_message(graph) #Delete before update
             if os.path.isfile("1d.png"):
-                graph = await client.send_file(channel,"1d.png")
+                graph = await client.send_file(channel, "1d.png")
             if exc: await client.delete_message(exc)
-            exc = await exchange(client,temp, verbose=False)
+            if faucet: await client.delete_message(faucet)
+            exc = await exchange(client, temp, verbose=False)
+            faucet = await faucet(client, temp)
+
             await asyncio.sleep(5*60) #Every 5 minutes
 
     client.loop.create_task(background_update())
