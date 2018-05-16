@@ -137,7 +137,7 @@ def main():
             if crypto1_btc and crypto2_btc:
                 rate = crypto1_btc / crypto2_btc
                 conv_amount = amount * rate
-                await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+                await client.send_message(message.channel, "```{0} {1} = {2} {3:.8f} (rate: {4:.8f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
         # FIAT -> CRYPTO or CRYPTO -> FIAT
         elif (is_crypto(curr1) or is_fiat(curr1)) and (is_crypto(curr2) or is_fiat(curr2)):
@@ -153,10 +153,10 @@ def main():
             if rate:
                 if fiat == curr1:
                     conv_amount = amount / rate
-                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, 1/rate))
+                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.8f} (rate: {4:.8f})```".format(curr1, msg[0], curr2, conv_amount, 1/rate))
                 else:
                     conv_amount = amount * rate
-                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.6f} (rate: {4:.6f})```".format(curr1, msg[0], curr2, conv_amount, rate))
+                    await client.send_message(message.channel, "```{0} {1} = {2} {3:.8f} (rate: {4:.8f})```".format(curr1, msg[0], curr2, conv_amount, rate))
 
         else:
             # One or both currencies aren't known
