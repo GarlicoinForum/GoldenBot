@@ -487,7 +487,7 @@ def main():
             if exc: await client.delete_message(exc)
             if faucet: await client.delete_message(faucet)
             exc = await exchange(client, temp, verbose=False)
-            faucet = await faucet(client, temp)
+            faucet = await faucet(client, channel)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
