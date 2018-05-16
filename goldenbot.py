@@ -133,9 +133,11 @@ def main():
             soup = BeautifulSoup(r.text, 'html.parser')
             h2 = soup.find('h2')
             balance = h2.text.replace("Current Balance ", "")
-            await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
+            tmp = await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
         except requests.Timeout:
-            await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+            tmp = await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
+
+        return tmp
 
 
     async def convert_3(client, message, msg):
