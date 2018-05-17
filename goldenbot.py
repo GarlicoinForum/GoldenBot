@@ -51,21 +51,21 @@ def faucet(url):
         soup = BeautifulSoup(r.text, 'html.parser')
         if url == "https://faucet.garlicoin.co.uk/":
             h2 = soup.find('h2')
-            balance = h2.text.replace("Current Balance ", "").replace(" GRLC", "")
+            balance = str(h2.text.replace("Current Balance ", "").replace(" GRLC", ""))
             address = soup.find("span", class_="badge badge-light")
             donation = address.text
             return balance, donation
 
         elif url == "https://faucetgarlico.in/":
             p = soup.find_all("p", style="color: #FFFFFF; text-align:center")
-            balance = p[-1].text
+            balance = str(p[-1].text)
             address = soup.find(string=re.compile("Donate to the faucet"))
             donation = address.split(": ")[-1]
             return balance, donation
 
         elif url == "https://faucet.garlicpool.org/":
             p = soup.find(string=re.compile("GRLC in faucet"))
-            balance = p.split(":\n")[-1]
+            balance = str(p.split(":\n")[-1])
             address = soup.find(string=re.compile("Please donate"))
             donation = address.split(": ")[-1]
             return balance, donation
