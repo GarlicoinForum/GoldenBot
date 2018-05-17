@@ -173,7 +173,7 @@ def main():
                     msg.append([url, "timeout", "timeout"])
 
             table = tabulate(msg, headers=["Faucet URL", "Current Balance", "Donation Address"])
-            return await client.send_message(message.channel, msg)
+            return await client.send_message(message.channel, table)
 
 
     async def convert_3(client, message, msg):
