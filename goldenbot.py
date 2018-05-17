@@ -170,7 +170,7 @@ def main():
             for url in urls:
                 bal, addr = faucet(url)
                 if verbose:
-                    await client.edit_message(tmp, "Acquiring exchange rates the faucets... [{}/{}]".format(urls.index(url) + 1, len(urls)))
+                    await client.edit_message(tmp, "Acquiring data from the faucets... [{}/{}]".format(urls.index(url) + 1, len(urls)))
                 if bal and addr:
                     msg.append([url, bal, addr])
                 else:
