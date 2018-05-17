@@ -164,16 +164,16 @@ def main():
             urls = ["https://faucet.garlicoin.co.uk/",
                     "https://faucetgarlico.in/",
                     "https://faucet.garlicpool.org/"]
-            msg = ""
+            msg = []
             for url in urls:
                 bal, addr = faucet(url)
                 if bal and addr:
-                    msg += "{} : {} (Donate: {})\n".format(url, bal, addr)
+                    msg.append([url, bal, addr])
                 else:
-                    msg += "Error : Couldn't reach {} (timeout)\n".format(url)
+                    msg.append([url, "timeout", "timeout"])
 
-            tmp = await client.send_message(message.channel, msg)
-            return tmp
+            table = tabulate(msg, headers=["Faucet URL", "Current Balance", "Donation Address"])
+            return await client.send_message(message.channel, msg)
 
 
     async def convert_3(client, message, msg):
