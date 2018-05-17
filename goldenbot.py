@@ -160,13 +160,17 @@ def main():
     BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
     PRICE_CHANNEL = conf.get('goldenbot_conf', 'PRICE_CHANNEL')
 
-    async def faucets(client, message):
+    async def faucets(client, message, verbose=False):
+            if verbose:
+                tmp = await client.send_message(message.channel, "Acquiring data from the faucets...")
             urls = ["https://faucet.garlicoin.co.uk/",
                     "https://faucetgarlico.in/",
                     "https://faucet.garlicpool.org/"]
             msg = []
             for url in urls:
                 bal, addr = faucet(url)
+                if verbose:
+                    await client.edit_message(tmp, "Acquiring exchange rates from CoinMarketCap... [{}/{}]".format(urls.index(url) + 1, len(urls)))
                 if bal and addr:
                     msg.append([url, bal, addr])
                 else:
@@ -362,7 +366,7 @@ def main():
     async def on_message(message):
         if message.content.startswith("!faucets"):
             # Get the url, current balance and donation address for each faucet
-            await faucets(client, message)
+            await faucets(client, message, verbose=True)
 
 
         if message.content.startswith("!fiat"):
