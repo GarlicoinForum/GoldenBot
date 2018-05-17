@@ -219,6 +219,7 @@ def main():
             if verbose:
                 tmp = await client.send_message(message.channel, "Acquiring rates from CoinMarketCap...")
             datas = requests.get("{0}?convert={1}".format(cmc_api_url(crypto), fiat), timeout=10)
+            print("{0}?convert={1}".format(cmc_api_url(crypto), fiat))
             if verbose:
                 await client.edit_message(tmp, "Acquiring rates from CoinMarketCap... Done!")
         except requests.Timeout:
