@@ -46,7 +46,7 @@ def faucet(url):
     try:
         r = requests.get(url, timeout=10)
     except requests.Timeout:
-        return None
+        return None, None
     else:
         soup = BeautifulSoup(r.text, 'html.parser')
         if url == "https://faucet.garlicoin.co.uk/":
@@ -167,7 +167,7 @@ def main():
             msg = ""
             for url in urls:
                 bal, addr = faucet(url)
-                if datas:
+                if bal and addr:
                     msg += "{} : {} (Donate: {})\n".format(url, bal, addr)
                 else:
                     msg += "Error : Couldn't reach {} (timeout)\n".format(url)
