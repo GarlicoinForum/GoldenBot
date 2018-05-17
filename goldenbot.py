@@ -4,6 +4,7 @@ import asyncio
 import configparser
 import os
 import sqlite3
+import re
 
 from time import sleep, time
 from tabulate import tabulate
@@ -39,6 +40,35 @@ def is_crypto(name):
         return True
     else:
         return False
+
+
+def faucet(url):
+    try:
+        r = requests.get(url, timeout=10)
+    except requests.Timeout:
+        return None
+    else:
+        soup = BeautifulSoup(r.text, 'html.parser')
+        if url == "https://faucet.garlicoin.co.uk/":
+            h2 = soup.find('h2')
+            balance = h2.text.replace("Current Balance ", "")
+            address = soup.find("span", class_="badge badge-light")
+            donation = address.text
+            return balance, donation
+
+        elif url == "https://faucetgarlico.in/":
+            p = soup.find_all("p", style="color: #FFFFFF; text-align:center")
+            balance = "{} GRLC".format(p[-1].text)
+            address = soup.find(string=re.compile("Donate to the faucet"))
+            donation = address.split(": ")[-1]
+            return balance, donation
+
+        elif url == "https://faucet.garlicpool.org/":
+            p = soup.find(string=re.compile("GRLC in faucet"))
+            balance = "{} GRLC".format(p.split(":\n")[-1])
+            address = soup.find(string=re.compile("Please donate"))
+            donation = address.split(": ")[-1]
+            return balance, donation
 
 
 def apply_rate(value, rate, currency):
@@ -130,18 +160,19 @@ def main():
     BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
     PRICE_CHANNEL = conf.get('goldenbot_conf', 'PRICE_CHANNEL')
 
-    async def faucet(client, message):
-        try:
-            r = requests.get("https://faucet.garlicoin.co.uk/", timeout=10)
-        except requests.Timeout:
-            tmp = await client.send_message(message.channel, "Error : Couldn't reach the faucet (timeout)")
-            return tmp
+    async def faucets(client, message):
+            urls = ["https://faucet.garlicoin.co.uk/",
+                    "https://faucetgarlico.in/",
+                    "https://faucet.garlicpool.org/"]
+            msg = ""
+            for url in urls:
+                bal, addr = faucet(url)
+                if datas:
+                    msg += "{} : {} (Donate: {})\n".format(url, bal, addr)
+                else:
+                    msg += "Error : Couldn't reach {} (timeout)\n".format(url)
 
-        else:
-            soup = BeautifulSoup(r.text, 'html.parser')
-            h2 = soup.find('h2')
-            balance = h2.text.replace("Current Balance ", "")
-            tmp = await client.send_message(message.channel, "Faucet : https://faucet.garlicoin.co.uk/\nBalance : {}".format(balance))
+            tmp = await client.send_message(message.channel, msg)
             return tmp
 
 
@@ -329,9 +360,9 @@ def main():
 
     @client.event
     async def on_message(message):
-        if message.content.startswith("!faucet"):
-            # Get the current balance from https://faucet.garlicoin.co.uk/
-            await faucet(client, message)
+        if message.content.startswith("!faucets"):
+            # Get the url, current balance and donation address for each faucet
+            await faucets(client, message)
 
 
         if message.content.startswith("!fiat"):
@@ -462,7 +493,7 @@ def main():
         if message.content.startswith("!help"):
             help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n```" \
                         "!help     : Displays a list of commands and what they do\n" \
-                        "!faucet   : Displays faucet url and current balance\n" \
+                        "!faucets  : Displays all faucets url, current balance and donation address\n" \
                         "!fiat     : Displays current price of GRLC in FIATs\n" \
                         "!crypto   : Displays current price of GRLC in Cryptos\n" \
                         "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
@@ -492,7 +523,7 @@ def main():
             if exc: await client.delete_message(exc)
             if fct: await client.delete_message(fct)
             exc = await exchange(client, temp, verbose=False)
-            fct = await faucet(client, temp)
+            fct = await faucets(client, temp)
 
             await asyncio.sleep(5*60) #Every 5 minutes
 
