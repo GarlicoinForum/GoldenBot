@@ -68,7 +68,7 @@ def update_cmc_api():
                         cursor.execute(sql)
                     db.commit()
 
-        time.sleep(24 * 60 * 60)
+        time.sleep(60 * 60)
 
 
 def save_ticker_db(ticker, timestamp, table, period):
