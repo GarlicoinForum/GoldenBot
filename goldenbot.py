@@ -71,7 +71,7 @@ def faucet(url):
             return balance, donation
 
         elif url == "https://www.twitch.tv/thedrashy":
-            balance = "N/A
+            balance = "N/A"
             donation = "GfrzZTqhako6n4prYesPSg5uD9FLZmKynH"
             return balance, donation
 
