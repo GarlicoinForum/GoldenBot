@@ -370,7 +370,7 @@ def main():
 
     @client.event
     async def on_message(message):
-        if message.content.startswith("!faucets"):
+        if message.content.startswith("!faucet"):
             # Get the url, current balance and donation address for each faucet
             await faucets(client, message, verbose=True)
 
