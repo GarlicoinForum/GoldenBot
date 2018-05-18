@@ -70,6 +70,11 @@ def faucet(url):
             donation = address.split(": ")[-1]
             return balance, donation
 
+        elif url == "https://www.twitch.tv/thedrashy":
+            balance = "N/A
+            donation = "GfrzZTqhako6n4prYesPSg5uD9FLZmKynH"
+            return balance, donation
+
 
 def apply_rate(value, rate, currency):
     # value = $0.053408 and rate = 7.07003
@@ -165,7 +170,8 @@ def main():
                 tmp = await client.send_message(message.channel, "Acquiring data from the faucets...")
             urls = ["https://faucet.garlicoin.co.uk/",
                     "https://faucetgarlico.in/",
-                    "https://faucet.garlicpool.org/"]
+                    "https://faucet.garlicpool.org/",
+                    "https://www.twitch.tv/thedrashy"]
             msg = []
             for url in urls:
                 bal, addr = faucet(url)
