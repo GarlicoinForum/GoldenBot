@@ -1,4 +1,7 @@
 # GoldenBot
+
+[![HitCount](http://hits.dwyl.io/GarlicoinForum/GoldenBot.svg)](http://hits.dwyl.io/GarlicoinForum/GoldenBot)
+
 Discord bot that assists in trading of Garlicoin (GRLC). Features are:
 
 ```
