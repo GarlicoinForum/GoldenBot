@@ -154,7 +154,10 @@ def get_change_db(column):
         cursor.execute(sql)
         result = cursor.fetchone()
 
-    return result[0]
+    if result:
+        return result[0]
+    else:
+        return None
 
 
 def main():
@@ -328,13 +331,16 @@ def main():
                 # Get the % change on 24h from the db
                 price = float(p.text.strip().replace("$", ""))
                 price_24h = get_change_db("{0}_{1}".format(cols[1], cols[2]))
-                change = (price / price_24h - 1) * 100
-                if change < 0:
-                    change = "-{:.2f}%".format(change * -1)
-                elif change > 0:
-                    change = "+{:.2f}%".format(change)
+                if price_24h:
+                    change = (price / price_24h - 1) * 100
+                    if change < 0:
+                        change = "-{:.2f}%".format(change * -1)
+                    elif change > 0:
+                        change = "+{:.2f}%".format(change)
+                    else:
+                        change = "0.00%"
                 else:
-                    change = "0.00%"
+                    change = "N/A"
 
                 d = [cols[0], cols[1], cols[2], cols[3] + " ({})".format(str(vol_n)),
                      cols[4] + " ({:.8f})".format(price_n), change]
