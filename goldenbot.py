@@ -5,10 +5,14 @@ import configparser
 import os
 import sqlite3
 import re
+import logging
 
 from time import sleep, time
 from tabulate import tabulate
 from bs4 import BeautifulSoup
+
+
+logging.basicConfig(filename='logs/goldenbot.log', level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 
 
 def cmc_api_url(symbol):
@@ -164,9 +168,47 @@ def main():
     client = discord.Client()
     conf = configparser.RawConfigParser()
     conf.read("config.txt")
+    cooldown = {}
 
     BOT_TOKEN = conf.get('goldenbot_conf', 'BOT_TOKEN')
     PRICE_CHANNEL = conf.get('goldenbot_conf', 'PRICE_CHANNEL')
+
+    async def not_spam(client, message, cooldown):
+        # cooldown: {User/Member: [cooldown timestamp, number of messages]}
+        # 6 messages every minute, bot will alert when cooled down and every attempt will double the remaining time
+
+        # Check if the message starts with !
+        if message.content.startswith("!"):
+            # Check if the message author is in cooldown
+            if message.author in cooldown:
+                # Check if current timestamp >= cooldown timestamp
+                if time() >= cooldown[message.author][0]:
+                    # Reset the counter and set a new cooldown timestamp
+                    cooldown[message.author] = [int(time()) + 60, 1]
+                    return True
+                elif cooldown[message.author][1] < 5:
+                    # User is in the limits
+                    cooldown[message.author][1] += 1
+                    return True
+                elif cooldown[message.author][1] == 5:
+                    # Warn the user on the channel
+                    await client.send_message(message.channel, "<@{}> You reached the limit of 6 commands in less than a minute, you can use the bot again in 1 minute.\nEvery attempt to use the bot during this period **will double the remaining time**.".format(message.author.id))
+                    cooldown[message.author] = [int(time()) + 60, 6]
+                    return False
+                else:
+                    cooldown[message.author][0] += cooldown[message.author][0] - int(time())
+                    cooldown[message.author][1] += 1
+                    # Inform the user by PM
+                    remaining = int((cooldown[message.author][0] - int(time())) / 60)
+                    await client.send_message(message.author, "<@{}> You reached the abuse limit, you can use the bot again in {} minutes.\nEvery attempt to use the bot during this period will double the remaining time.\n**STOP SPAMMING!**".format(message.author.id, remaining))
+                    return False
+            else:
+                # Not spam
+                cooldown[message.author] = [time(), 1]
+                return True
+        else:
+            # Not a command so we don't need to do all the tests to find what command the user typed
+            return False
 
     async def faucets(client, message, verbose=False):
             if verbose:
@@ -376,65 +418,86 @@ def main():
 
     @client.event
     async def on_message(message):
-        if message.content.startswith("!faucet"):
-            # Get the url, current balance and donation address for each faucet
-            await faucets(client, message, verbose=True)
+        if await not_spam(client, message, cooldown):
+            if message.content.startswith("!faucet"):
+                # Get the url, current balance and donation address for each faucet
+                await faucets(client, message, verbose=True)
 
 
-        if message.content.startswith("!fiat"):
-            # Get the GRLC price in USD, EUR, GBP & AUD
-            tmp = await client.send_message(message.channel, "Acquiring fiat rates from CoinMarketCap...")
-            fiats = get_fiats()
-            if fiats:
-                await client.edit_message(tmp, "Acquiring fiat rates from CoinMarketCap... Done!")
-                symbols = [("USD", "$"), ("EUR", "€"), ("GBP", "£"), ("AUD", "$")]
-                data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(9, fiats[i])), "₲ {}".format(fstr(9, 1/fiats[i]))] for i in range(4)]
-                table = tabulate(data, headers=["", "Garlicoin", "Fiat"])
+            if message.content.startswith("!fiat"):
+                # Get the GRLC price in USD, EUR, GBP & AUD
+                tmp = await client.send_message(message.channel, "Acquiring fiat rates from CoinMarketCap...")
+                fiats = get_fiats()
+                if fiats:
+                    await client.edit_message(tmp, "Acquiring fiat rates from CoinMarketCap... Done!")
+                    symbols = [("USD", "$"), ("EUR", "€"), ("GBP", "£"), ("AUD", "$")]
+                    data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(9, fiats[i])), "₲ {}".format(fstr(9, 1/fiats[i]))] for i in range(4)]
+                    table = tabulate(data, headers=["", "Garlicoin", "Fiat"])
 
-                await client.send_message(message.channel, "```js\n{}```".format(table))
-            else:
-                # Timeout
-                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
-
-
-        if message.content.startswith("!crypto"):
-            # Get the GRLC price in BTC, ETH, LTC, NANO
-            tmp = await client.send_message(message.channel, "Acquiring crypto rates from CoinMarketCap...")
-            cryptos = get_cryptos()
-
-            if cryptos:
-                await client.edit_message(tmp, "Acquiring crypto rates from CoinMarketCap... Done!")
-                symbols = [("BTC", "฿"), ("ETH", "Ξ"), ("LTC", "Ł"), ("NANO", "η")]
-                data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(10, cryptos[i])), "₲ {}".format(fstr(10, 1/cryptos[i]))] for i in range(4)]
-                table = tabulate(data, headers=["", "Garlicoin", "Crypto"])
-
-                await client.send_message(message.channel, "```js\n{}```".format(table))
-            else:
-                # Timeout
-                await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
+                    await client.send_message(message.channel, "```js\n{}```".format(table))
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
 
-        if message.content.startswith("!graph"):
-            msg = message.content.replace("!graph ", "").split(" ")
-            if os.path.isfile("{}.png".format(msg[0].lower())):
-                await client.send_file(message.channel,"{}.png".format(msg[0].lower()))
-            elif message.content == "!graph" or message.content == "!graph ":
-                await client.send_file(message.channel,"1d.png")
-            else:
-                await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
+            if message.content.startswith("!crypto"):
+                # Get the GRLC price in BTC, ETH, LTC, NANO
+                tmp = await client.send_message(message.channel, "Acquiring crypto rates from CoinMarketCap...")
+                cryptos = get_cryptos()
+
+                if cryptos:
+                    await client.edit_message(tmp, "Acquiring crypto rates from CoinMarketCap... Done!")
+                    symbols = [("BTC", "฿"), ("ETH", "Ξ"), ("LTC", "Ł"), ("NANO", "η")]
+                    data = [[symbols[i][0], "{0} {1}".format(symbols[i][1],fstr(10, cryptos[i])), "₲ {}".format(fstr(10, 1/cryptos[i]))] for i in range(4)]
+                    table = tabulate(data, headers=["", "Garlicoin", "Crypto"])
+
+                    await client.send_message(message.channel, "```js\n{}```".format(table))
+                else:
+                    # Timeout
+                    await client.edit_message(tmp, "Error : Couldn't reach CoinMarketCap (timeout)")
 
 
-        if message.content.startswith("!conv"):
-            # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
-            msg = message.content.replace("!conv ", "").split(" ")
+            if message.content.startswith("!graph"):
+                msg = message.content.replace("!graph ", "").split(" ")
+                if os.path.isfile("{}.png".format(msg[0].lower())):
+                    await client.send_file(message.channel,"{}.png".format(msg[0].lower()))
+                elif message.content == "!graph" or message.content == "!graph ":
+                    await client.send_file(message.channel,"1d.png")
+                else:
+                    await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
 
-            try:
-                # Check if the amount sent by the user is a number
-                float(msg[0].replace(",", "."))
-            except ValueError:
-                # The amount isn't a numeric value
-                if len(msg) >= 2:
-                    msg = ["1"] + msg
+
+            if message.content.startswith("!conv"):
+                # !conv [amount] [currency1] [currency2] [rate (optional)] --> [currency1] [amount] = [currency2] [converted amount] ([rate])
+                msg = message.content.replace("!conv ", "").split(" ")
+
+                try:
+                    # Check if the amount sent by the user is a number
+                    float(msg[0].replace(",", "."))
+                except ValueError:
+                    # The amount isn't a numeric value
+                    if len(msg) >= 2:
+                        msg = ["1"] + msg
+                        # Show a custom message if currency1 == currency2
+                        if msg[1] == msg[2]:
+                            await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+
+                        # Check if there is a rate
+                        elif len(msg) == 3:
+                            await convert_3(client, message, msg)
+
+                        elif len(msg) == 4:
+                            await convert_4(client, message, msg)
+
+                        else:
+                            # Not enough parameters sent
+                            error_txt = "Not enough parameters given : `!conv [amount] [cur1] [cur2] [rate (optional)]`\n" \
+                                        "[cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO"
+                            await client.send_message(message.channel, error_txt)
+                    else:
+                        await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
+
+                else:
                     # Show a custom message if currency1 == currency2
                     if msg[1] == msg[2]:
                         await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
@@ -451,78 +514,58 @@ def main():
                         error_txt = "Not enough parameters given : `!conv [amount] [cur1] [cur2] [rate (optional)]`\n" \
                                     "[cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO"
                         await client.send_message(message.channel, error_txt)
+
+
+            if message.content.startswith("!exchange"):
+                if " " in message.content:
+                    await exchange(client, message, currency=message.content.split(" ")[1])
                 else:
-                    await client.send_message(message.channel, "Error: Unable to get the amount to convert.")
+                    await exchange(client, message)
 
-            else:
-                # Show a custom message if currency1 == currency2
-                if msg[1] == msg[2]:
-                    await client.send_message(message.channel, "```js\n{0} {1} = {0} {1}```".format(msg[1], msg[0]))
+            if message.content.startswith("!net"):
+                tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
+                try:
+                    price = requests.get(cmc_api_url("GRLC"), timeout=10)
+                    diff = requests.get("https://garli.co.in/api/getdifficulty", timeout=10)
+                    blocks = requests.get("https://garli.co.in/api/getblockcount", timeout=10)
+                    hrate = requests.get("https://garli.co.in/api/getnetworkhashps", timeout=10)
+                    supply = requests.get("https://garli.co.in/ext/getmoneysupply", timeout=10)
+                except requests.Timeout:
+                    price = None
 
-                # Check if there is a rate
-                elif len(msg) == 3:
-                    await convert_3(client, message, msg)
+                if price:
+                    await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
+                    price = round(float(price.json()["data"]["quotes"]["USD"]["price"]), 6)
+                    diff = round(diff.json(), 2)
+                    blocks = blocks.json()
+                    hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
+                    supply = round(supply.json())
 
-                elif len(msg) == 4:
-                    await convert_4(client, message, msg)
-
+                    #Profitability in USD/Mh/day
+                    profit = round(diff * 2**32 / 1e6 / 60 / 60.0 / 24 * price, 2)
+                    table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
+                    await client.send_message(message.channel, "```js\n{}```".format(table))
+                    await client.send_message(message.channel, "```js\nProfitability ($/Mh/day): {}```".format(profit))
                 else:
-                    # Not enough parameters sent
-                    error_txt = "Not enough parameters given : `!conv [amount] [cur1] [cur2] [rate (optional)]`\n" \
-                                "[cur1] and [cur2] can be : USD, EUR, GBP, AUD, GRLC, BTC, ETH, LTC or NANO"
-                    await client.send_message(message.channel, error_txt)
+                    await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
 
-
-        if message.content.startswith("!exchange"):
-            if " " in message.content:
-                await exchange(client, message, currency=message.content.split(" ")[1])
-            else:
-                await exchange(client, message)
-
-        if message.content.startswith("!net"):
-            tmp = await client.send_message(message.channel, "Acquiring data from CMC/garli.co.in...")
-            try:
-                price = requests.get(cmc_api_url("GRLC"), timeout=10)
-                diff = requests.get("https://garli.co.in/api/getdifficulty", timeout=10)
-                blocks = requests.get("https://garli.co.in/api/getblockcount", timeout=10)
-                hrate = requests.get("https://garli.co.in/api/getnetworkhashps", timeout=10)
-                supply = requests.get("https://garli.co.in/ext/getmoneysupply", timeout=10)
-            except requests.Timeout:
-                price = None
-
-            if price:
-                await client.edit_message(tmp, "Acquiring data from CMC/garli.co.in... Done!")
-                price = round(float(price.json()["data"]["quotes"]["USD"]["price"]), 6)
-                diff = round(diff.json(), 2)
-                blocks = blocks.json()
-                hrate = round(float(hrate.json()) / 10e8, 2) # Convert to GH/s
-                supply = round(supply.json())
-
-                #Profitability in USD/Mh/day
-                profit = round(diff * 2**32 / 1e6 / 60 / 60.0 / 24 * price, 2)
-                table = tabulate([[price, diff, blocks, hrate, supply]], headers=["Price (USD)", "Difficulty", "Block", "Hashrate (GH/s)", "Supply"])
-                await client.send_message(message.channel, "```js\n{}```".format(table))
-                await client.send_message(message.channel, "```js\nProfitability ($/Mh/day): {}```".format(profit))
-            else:
-                await client.edit_message(tmp, "Error : Couldn't reach CMC/garli.co.in (timeout)")
-
-        if message.content.startswith("!help"):
-            help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n```" \
-                        "!help     : Displays a list of commands and what they do\n" \
-                        "!faucets  : Displays all faucets url, current balance and donation address\n" \
-                        "!fiat     : Displays current price of GRLC in FIATs\n" \
-                        "!crypto   : Displays current price of GRLC in Cryptos\n" \
-                        "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
-                        "!exchange : Displays all the current rates by exchange (optional: convert it in another currency)\n" \
-                        "            Usage : !exchange [currency]\n" \
-                        "            supported currencies: EUR, GBP, AUD, all CMC crytpos\n" \
-                        "!graph    : Displays the price chart.\n" \
-                        "            Usage : !graph [1d|1w|1m|3m]\n" \
-                        "!conv     : Converts an amount of one currency to another\n" \
-                        "            Usage: !conv [amount] [cur1] [cur2] [rate (optional)]\n" \
-                        "            supported currencies: USD, EUR, GBP, AUD, all CMC crytpos" \
-                        "```".format(message.author.id)
-            await client.send_message(message.channel, help_text)
+            if message.content.startswith("!help"):
+                help_text = "<@{}>, I'm GoldenBot, I'm here to assist you during your trades!\n```" \
+                            "!help     : Displays a list of commands and what they do\n" \
+                            "!faucets  : Displays all faucets url, current balance and donation address\n" \
+                            "!fiat     : Displays current price of GRLC in FIATs\n" \
+                            "!crypto   : Displays current price of GRLC in Cryptos\n" \
+                            "!net      : Displays price, difficulty, block, hashrate, supply and profitability\n\n" \
+                            "!exchange : Displays all the current rates by exchange (optional: convert it in another currency)\n" \
+                            "            Usage : !exchange [currency]\n" \
+                            "            supported currencies: EUR, GBP, AUD, all CMC crytpos\n" \
+                            "!graph    : Displays the price chart.\n" \
+                            "            Usage : !graph [1d|1w|1m|3m]\n" \
+                            "!conv     : Converts an amount of one currency to another\n" \
+                            "            Usage: !conv [amount] [cur1] [cur2] [rate (optional)]\n" \
+                            "            supported currencies: USD, EUR, GBP, AUD, all CMC crytpos" \
+                            "```".format(message.author.id)
+                await client.send_message(message.channel, help_text)
 
     async def background_update():
         #Displays/updates 1d graph and exchange info in PRICE_CHANNEL

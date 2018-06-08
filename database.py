@@ -6,7 +6,7 @@ import logging
 from bs4 import BeautifulSoup
 
 
-logging.basicConfig(filename='logs/database.log',level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
+logging.basicConfig(filename='logs/database.log', level=logging.INFO, format='%(asctime)s -- %(levelname)s -- %(message)s')
 
 
 def exchanges_price_grabber():
