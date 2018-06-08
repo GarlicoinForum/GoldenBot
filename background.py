@@ -1,3 +1,4 @@
+"""
 import os
 import time
 import threading
@@ -191,7 +192,6 @@ CMC_API_Thread()
 for time_range in ["1d", "1w", "1m", "3m"]:
     GraphThread(time_range)
 
-"""
 while True:
     # Get the current value of GRLC from CMC
     timestamp = int(time.time())
