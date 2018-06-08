@@ -158,6 +158,7 @@ def grab_exchanges():
             sql = sql.format(timestamp, d["Trade Satoshi_GRLC/BTC"], d["CoinFalcon_GRLC/BTC"], d["CryptoBridge_GRLC/BTC"],
                              d["Nanex_GRLC/NANO"], d["Trade Satoshi_GRLC/LTC"], d["Trade Satoshi_GRLC/BCH"],
                              d["Trade Satoshi_GRLC/DOGE"],d["Trade Satoshi_GRLC/USDT"], d["CoinFalcon_GRLC/ETH"])
+            print(sql)
             with lock:
                 with sqlite3.connect("db.sqlite3") as db:
                     cursor = db.cursor()
@@ -170,6 +171,7 @@ def grab_exchanges():
             limit_timestamp = timestamp - 7 * 24 * 60 * 60
             sql = "DELETE FROM `cmc_exchanges` WHERE `timestamp` <= {}".format(limit_timestamp)
 
+            print(sql)
             with lock:
                 with sqlite3.connect("db.sqlite3") as db:
                     cursor = db.cursor()
@@ -189,6 +191,7 @@ CMC_API_Thread()
 for time_range in ["1d", "1w", "1m", "3m"]:
     GraphThread(time_range)
 
+"""
 while True:
     # Get the current value of GRLC from CMC
     timestamp = int(time.time())
@@ -236,3 +239,4 @@ while True:
     # TODO: CF ticker (uses wss not http)
 
     time.sleep((timestamp + 60) - int(time.time()))
+"""
