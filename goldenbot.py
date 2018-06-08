@@ -148,7 +148,7 @@ def get_change_db(column):
     min_t = int(time()) - 24 * 60 * 60
 
     # Get prices that are >= min_t
-    sql = "SELECT `{0}` FROM `cmc_exchanges` WHERE `timestamp` >= {1}".format(column, min_t)
+    sql = "SELECT `{0}` FROM `cmc_exchanges` WHERE `timestamp` >= {1} AND `timestamp` <= {2};".format(column, min_t, min_t + 120)
     with sqlite3.connect("db.sqlite3") as db:
         cursor = db.cursor()
         cursor.execute(sql)
