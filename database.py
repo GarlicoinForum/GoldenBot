@@ -67,16 +67,15 @@ def update_cmc_api():
         for item in r.json()["data"]:
             sqls.append("INSERT INTO `cmc_api` (`id`, `symbol`) VALUES ('{0}', '{1}');".format(item["id"], item["symbol"]))
 
-        with lock:
-            with sqlite3.connect("db.sqlite3") as db:
-                cursor = db.cursor()
-                cursor.execute("DROP TABLE `cmc_api`;")
-                cursor.execute("CREATE TABLE `cmc_api` (`id`    INTEGER NOT NULL UNIQUE," \
-                               "`symbol`    TEXT NOT NULL, PRIMARY KEY(`id`,`symbol`));")
-                for sql in sqls:
-                    # logging.debug(sql)
-                    cursor.execute(sql)
-                db.commit()
+        with sqlite3.connect("db.sqlite3") as db:
+            cursor = db.cursor()
+            cursor.execute("DROP TABLE `cmc_api`;")
+            cursor.execute("CREATE TABLE `cmc_api` (`id`    INTEGER NOT NULL UNIQUE," \
+                           "`symbol`    TEXT NOT NULL, PRIMARY KEY(`id`,`symbol`));")
+            for sql in sqls:
+                # logging.debug(sql)
+                cursor.execute(sql)
+            db.commit()
 
     logging.info("CMC API cryptos update finished")
 
