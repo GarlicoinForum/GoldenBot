@@ -464,7 +464,7 @@ def main():
                 elif message.content == "!graph" or message.content == "!graph ":
                     await client.send_file(message.channel,"1d.png")
                 else:
-                    await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m].")
+                    await client.send_message(message.channel, "Error: Unable to grab chart. Options are !graph [1d|1w|1m|3m|6m|all].")
 
 
             if message.content.startswith("!conv"):
